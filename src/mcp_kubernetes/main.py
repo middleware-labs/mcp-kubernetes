@@ -67,7 +67,6 @@ def server():
     # Set security configuration
     security_config.readonly = args.readonly
 
-    # Set allowed and denied namespaces
     if args.allow_namespaces:
         security_config.allowed_namespaces = args.allow_namespaces
 
