@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import argparse
 from fastmcp import FastMCP
+import logging
 from .kubeclient import setup_client, apis, crds, get
 from .command import kubectl, helm
 from .security import security_config
@@ -54,12 +55,6 @@ def server():
         default="",
         help="Comma-separated list of namespaces to allow (empty means all allowed)",
     )
-    parser.add_argument(
-        "--deny-namespaces",
-        type=str,
-        default="",
-        help="Comma-separated list of namespaces to deny (takes precedence over --allow-namespaces)",
-    )
 
     args = parser.parse_args()
     mcp.settings.port = args.port
@@ -69,9 +64,6 @@ def server():
 
     if args.allow_namespaces:
         security_config.allowed_namespaces = args.allow_namespaces
-
-    if args.deny_namespaces:
-        security_config.denied_namespaces = args.deny_namespaces
 
     # Setup Kubernetes client
     setup_client()
@@ -90,4 +82,5 @@ def server():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     server()

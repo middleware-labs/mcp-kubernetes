@@ -41,29 +41,15 @@ class TestSecurityConfig(unittest.TestCase):
             ["default", "kube-system", "app-namespace"],
         )
 
-    def test_denied_namespaces_default(self):
-        """Test that denied_namespaces is empty by default."""
-        self.assertEqual(self.security_config.denied_namespaces, [])
+        # Test with regex patterns - they should be separated into regex_patterns
+        self.security_config.allowed_namespaces = "default,app-.*,test-\\d+"
 
-    def test_denied_namespaces_setter(self):
-        """Test setting denied_namespaces."""
-        self.security_config.denied_namespaces = "kube-system,kube-public"
-        self.assertEqual(
-            self.security_config.denied_namespaces, ["kube-system", "kube-public"]
-        )
-
-        # Test with spaces
-        self.security_config.denied_namespaces = (
-            "kube-system, kube-public ,  secret-namespace"
-        )
-        self.assertEqual(
-            self.security_config.denied_namespaces,
-            ["kube-system", "kube-public", "secret-namespace"],
-        )
+        # Check that the regex patterns were correctly identified and compiled
+        self.assertEqual(len(self.security_config.allowed_namespaces), 3)
 
     def test_is_namespace_allowed_no_restrictions(self):
         """Test namespace access with no restrictions."""
-        # When no namespaces are explicitly allowed or denied, all should be allowed
+        # When no namespaces are explicitly allowed, all should be allowed
         self.assertTrue(self.security_config.is_namespace_allowed("default"))
         self.assertTrue(self.security_config.is_namespace_allowed("kube-system"))
         self.assertTrue(self.security_config.is_namespace_allowed("any-namespace"))
@@ -82,37 +68,34 @@ class TestSecurityConfig(unittest.TestCase):
             self.security_config.is_namespace_allowed("any-other-namespace")
         )
 
-    def test_is_namespace_allowed_with_denied_list(self):
-        """Test namespace access with denied list."""
-        self.security_config.denied_namespaces = "kube-system,secret-namespace"
+    def test_regex_namespace_patterns(self):
+        """Test regex patterns for namespace matching."""
+        # Set up with a mix of exact and regex patterns
+        self.security_config.allowed_namespaces = "default,app-.*,test-\\d+,prod-[a-z]+"
 
-        # Namespaces in the denied list should be denied
-        self.assertFalse(self.security_config.is_namespace_allowed("kube-system"))
-        self.assertFalse(self.security_config.is_namespace_allowed("secret-namespace"))
-
-        # Namespaces not in the denied list should be allowed
+        # Exact match should work
         self.assertTrue(self.security_config.is_namespace_allowed("default"))
-        self.assertTrue(self.security_config.is_namespace_allowed("app-namespace"))
+        # Regex patterns should match appropriate namespaces
+        self.assertTrue(self.security_config.is_namespace_allowed("app-frontend"))
+        self.assertTrue(self.security_config.is_namespace_allowed("app-backend"))
+        self.assertTrue(self.security_config.is_namespace_allowed("test-123"))
+        self.assertTrue(self.security_config.is_namespace_allowed("prod-xyz"))
 
-    def test_denied_list_takes_precedence(self):
-        """Test that denied_namespaces takes precedence over allowed_namespaces."""
-        self.security_config.allowed_namespaces = "default,kube-system,app-namespace"
-        self.security_config.denied_namespaces = "kube-system,secret-namespace"
+        # Non-matching namespaces should be denied
+        self.assertFalse(self.security_config.is_namespace_allowed("app"))
+        self.assertFalse(self.security_config.is_namespace_allowed("test"))
+        self.assertFalse(self.security_config.is_namespace_allowed("prod-123"))
+        self.assertFalse(self.security_config.is_namespace_allowed("staging"))
 
-        # Namespaces in both allowed and denied lists should be denied
-        self.assertFalse(self.security_config.is_namespace_allowed("kube-system"))
+    def test_invalid_regex_patterns(self):
+        """Test handling of invalid regex patterns."""
+        # Set an invalid regex pattern
+        self.security_config.allowed_namespaces = "default,[invalid"
 
-        # Namespaces only in allowed list should be allowed
+        # The regex should be treated as a literal string
         self.assertTrue(self.security_config.is_namespace_allowed("default"))
-        self.assertTrue(self.security_config.is_namespace_allowed("app-namespace"))
-
-        # Namespaces only in denied list should be denied
-        self.assertFalse(self.security_config.is_namespace_allowed("secret-namespace"))
-
-        # Namespaces in neither list should be denied (since allowed list is not empty)
-        self.assertFalse(
-            self.security_config.is_namespace_allowed("any-other-namespace")
-        )
+        self.assertTrue(self.security_config.is_namespace_allowed("[invalid"))
+        self.assertFalse(self.security_config.is_namespace_allowed("invalid"))
 
 
 if __name__ == "__main__":

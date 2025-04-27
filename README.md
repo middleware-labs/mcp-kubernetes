@@ -88,7 +88,6 @@ Config your MCP servers in [Claude Desktop](https://claude.ai/download), [Cursor
     "kubernetes": {
       "command": "uvx",
       "args": [
-        "run",
         "mcp-kubernetes"
       ],
       "env": {
