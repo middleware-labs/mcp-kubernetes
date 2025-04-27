@@ -2,6 +2,12 @@
 import subprocess
 from typing import List, Union
 
+from mcp_kubernetes.security_validator import (
+    HELM_READ_OPERATIONS,
+    KUBECTL_READ_OPERATIONS,
+    validate_command,
+)
+
 
 class ShellProcess:
     """Wrapper for shell command."""
@@ -52,13 +58,21 @@ class ShellProcess:
 
 async def kubectl(command: str) -> str:
     """Run a kubectl command and return the output."""
-    process = ShellProcess(command='kubectl')
+    error = validate_command(command, KUBECTL_READ_OPERATIONS, "kubectl")
+    if error:
+        return error
+
+    process = ShellProcess(command="kubectl")
     output = process.run(command)
     return output
 
 
 async def helm(command: str) -> str:
     """Run a helm command and return the output."""
+    error = validate_command(command, HELM_READ_OPERATIONS, "helm")
+    if error:
+        return error
+
     process = ShellProcess(command="helm")
     output = process.run(command)
     return output
