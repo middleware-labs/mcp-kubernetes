@@ -3,7 +3,7 @@ import logging
 import subprocess
 from typing import List, Union
 
-from mcp_kubernetes.security_validator import (
+from .security_validator import (
     HELM_READ_OPERATIONS,
     KUBECTL_READ_OPERATIONS,
     validate_command,

@@ -11,3 +11,11 @@ dependencies = [
 
 [project.scripts]
 mcp-kubernetes = "mcp_kubernetes:main"
+
+[dependency-groups]
+dev = [
+    "mcp-kubernetes",
+]
+
+[tool.uv.sources]
+mcp-kubernetes = { workspace = true }

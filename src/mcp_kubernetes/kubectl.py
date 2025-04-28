@@ -1,5 +1,5 @@
-from mcp_kubernetes.command import ShellProcess
-from mcp_kubernetes.security_validator import validate_namespace_scope
+from .command import ShellProcess
+from .security_validator import validate_namespace_scope
 
 
 def _kubectl(command_prefix: str, args: str) -> str:

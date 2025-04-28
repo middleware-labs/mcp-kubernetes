@@ -4,7 +4,13 @@ import json
 import os
 from datetime import datetime
 from kubernetes import client, config, dynamic
+from fastmcp import FastMCP
+from pydantic import Field
+from typing import Annotated
 
+
+# Initialize FastMCP server
+k8sapi = FastMCP("k8s-apiserver")
 
 def gen_kubeconfig():
     """Generate a kubeconfig for the current Pod."""
@@ -82,98 +88,35 @@ def setup_client():
         config.load_incluster_config()
     return client
 
-
-async def apis():
-    """List all available APIs in the Kubernetes cluster."""
-    result = client.ApisApi().get_api_versions(async_req=True).get()
-    return json.dumps(result.to_dict(), indent=2)
-
-
-async def crds():
-    """List all Custom Resource Definitions (CRDs) in the Kubernetes cluster."""
-    result = (
-        client.ApiextensionsV1Api()
-        .list_custom_resource_definition(async_req=True)
-        .get()
-    )
-    return json.dumps(result.to_dict(), indent=2, cls=DateTimeEncoder)
-
-
-def _match(res, target):
-    return (
-        target == res.get("name")
-        or target == res.get("singularName")
-        or target in (res.get("shortNames") or [])
-    )
-
-
-def _get_group_versions(api_client):
-    """
-    Generator yielding ('', 'v1') for core, then ('apps', 'v1'), …
-    Works no matter which SDK version you have.
-    """
-    # core
-    yield "", "v1"
-
-    # /apis – list API groups
-    resp = api_client.call_api(
-        "/apis", "GET", response_type="object", _return_http_data_only=True
-    )
-    for g in resp["groups"]:
-        for v in g["versions"]:
-            yield g["name"], v["version"]
-
-
-async def get(resource, name, namespace):
+@k8sapi.tool("Get-k8s-Object",
+        "Fetch any Kubernetes object (or list) as JSON string. Pass name="" to list the collection and namespace="" to get the resource in all namespaces.")
+async def get(
+    kind: Annotated[str, Field(description="The kubernetes resource kind")], 
+    name: Annotated[str, Field(description="The kubernetes resource name, list all of resources if empty")] = "", 
+    namespace: Annotated[str, Field(description="The kubernetes resource namespace, list all resource of all namespace if resource is namespace scoped and it is empty")] = "") -> bytes:
     """
     Fetch any Kubernetes object (or list) as JSON string. Pass name="" to list the collection and namespace="" to get the resource in all namespaces.
 
-    :param resource: The resource type (e.g., pods, deployments).
+    :param kind: The resource type (e.g., pods, deployments).
     :param name: The name of the resource.
     :param namespace: The namespace of the resource.
     :return: The JSON representation of the resource.
     """
-    try:
-        api_client = client.ApiClient()
-        dyn = dynamic.DynamicClient(api_client)
-
-        rc = None  # dynamic.Resource we will eventually find
-
-        # 2. iterate every group/version, read its /…/resources list
-        for group, version in _get_group_versions(api_client):
-            # discover resources for that gv
-            path = f"/api/{version}" if group == "" else f"/apis/{group}/{version}"
-            try:
-                reslist = api_client.call_api(
-                    path, "GET", response_type="object", _return_http_data_only=True
-                )
-            except client.exceptions.ApiException:
-                continue  # disabled / no permission → skip
-
-            for r in reslist["resources"]:
-                if _match(r, resource):
-                    gv = version if group == "" else f"{group}/{version}"
-                    rc = dyn.resources.get(api_version=gv, kind=r["kind"])
-                    break
-            if rc:
-                break
-
-        if rc is None:
-            return f"Error: resource '{resource}' not found in cluster"
-
-        # 3. GET the object or list
-        if rc.namespaced:
-            if name:
-                fetched = rc.get(name=name, namespace=namespace or "default")
-            else:
-                if namespace == "" or namespace is None:
-                    fetched = rc.get(all_namespaces=True)
-                else:
-                    fetched = rc.get(namespace=namespace)
+    api_client = client.ApiClient()
+    dyn = dynamic.DynamicClient(api_client)
+    fetched = list()
+    resource = dyn.resources.get(kind=kind.capitalize())
+    if resource.namespaced:
+        if name:
+            fetched = resource.get(name=name, namespace=namespace or "default")
         else:
-            fetched = rc.get(name=name) if name else rc.get()
+            if namespace == "" or namespace is None:
+                fetched = resource.get(all_namespaces=True)
+            else:
+                fetched = resource.get(namespace=namespace)
+    else:
+        fetched = resource.get(name=name) if name else resource.get()
 
-        return json.dumps(fetched.to_dict(), indent=2, cls=DateTimeEncoder)
+    return json.dumps(fetched.to_dict(), indent=2, cls=DateTimeEncoder)
 
-    except Exception as exc:  # pylint: disable=broad-exception-caught
-        return "Error:\n" + str(exc)
+
