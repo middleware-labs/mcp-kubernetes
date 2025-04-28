@@ -3,15 +3,13 @@ import argparse
 from fastmcp import FastMCP
 import logging
 from .kubeclient import setup_client, apis, crds, get
-from .command import kubectl, helm
+from .command import helm
 from .security import security_config
 
-# Import all kubectl functions to ensure they are registered
-from .kubectl import *
+
 from .tool_registry import (
-    KUBECTL_READONLY,
-    get_kubectl_functions_by_label,
-    get_all_kubectl_registered_functions,
+    KUBECTL_READ_ONLY_TOOLS,
+    KUBECTL_ALL_TOOLS,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,12 +22,12 @@ mcp = FastMCP("mcp-kubernetes")
 def add_kubectl_tools():
     if security_config.readonly:
         # Register read-only functions
-        for func in get_kubectl_functions_by_label(KUBECTL_READONLY):
+        for func in KUBECTL_READ_ONLY_TOOLS:
             logger.debug(f"Registering kubectl function: {func.__name__}")
             mcp.tool()(func)
     else:
         # Register all functions
-        for func in get_all_kubectl_registered_functions():
+        for func in KUBECTL_ALL_TOOLS:
             logger.debug(f"Registering kubectl function: {func.__name__}")
             mcp.tool()(func)
 

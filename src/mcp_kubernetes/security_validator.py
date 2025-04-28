@@ -113,9 +113,7 @@ def validate_namespace_scope(command: str) -> Optional[str]:
     namespace = extract_namespace_from_command(command)
 
     # If command applies to all namespaces (--all-namespaces or -A), and there are namespace restrictions
-    if namespace == "*" and (
-        security_config.allowed_namespaces or security_config.denied_namespaces
-    ):
+    if namespace == "*" and security_config.allowed_namespaces:
         return "Error: Access to all namespaces is restricted by security configuration"
 
     # If a namespace is specified (or default "default" is used), check if it's allowed

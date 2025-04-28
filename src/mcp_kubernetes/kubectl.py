@@ -3,12 +3,6 @@ from mcp_kubernetes.security_validator import (
     KUBECTL_READ_OPERATIONS,
     validate_namespace_scope,
 )
-from mcp_kubernetes.tool_registry import (
-    kubectl_func_register,
-    KUBECTL_READONLY,
-    KUBECTL_RW,
-    KUBECTL_ADMIN,
-)
 
 
 def _kubectl(command_prefix: str, args: str) -> str:
@@ -34,7 +28,6 @@ def _kubectl(command_prefix: str, args: str) -> str:
 # ----- Basic Commands (Beginner) -----
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_create(args: str) -> str:
     """
     Run a `kubectl create` command and return the output.
@@ -54,7 +47,6 @@ def kubectl_create(args: str) -> str:
     return _kubectl("kubectl create", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_expose(args: str) -> str:
     """
     Run a `kubectl expose` command and return the output.
@@ -73,7 +65,6 @@ def kubectl_expose(args: str) -> str:
     return _kubectl("kubectl expose", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_run(args: str) -> str:
     """
     Run a `kubectl run` command and return the output.
@@ -92,7 +83,6 @@ def kubectl_run(args: str) -> str:
     return _kubectl("kubectl run", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_set(args: str) -> str:
     """
     Run a `kubectl set` command and return the output.
@@ -115,7 +105,6 @@ def kubectl_set(args: str) -> str:
 # ----- Basic Commands (Intermediate) -----
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_explain(args: str) -> str:
     """
     Run a `kubectl explain` command and return the output.
@@ -135,7 +124,6 @@ def kubectl_explain(args: str) -> str:
     return _kubectl("kubectl explain", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_get(args: str) -> str:
     """
     Run a `kubectl get` command and return the output.
@@ -156,7 +144,6 @@ def kubectl_get(args: str) -> str:
     return _kubectl("kubectl get", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_delete(args: str) -> str:
     """
     Run a `kubectl delete` command and return the output.
@@ -179,7 +166,6 @@ def kubectl_delete(args: str) -> str:
 # ----- Deploy Commands -----
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_rollout(args: str) -> str:
     """
     Run a `kubectl rollout` command and return the output.
@@ -200,7 +186,6 @@ def kubectl_rollout(args: str) -> str:
     return _kubectl("kubectl rollout", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_scale(args: str) -> str:
     """
     Run a `kubectl scale` command and return the output.
@@ -219,7 +204,6 @@ def kubectl_scale(args: str) -> str:
     return _kubectl("kubectl scale", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_autoscale(args: str) -> str:
     """
     Run a `kubectl autoscale` command and return the output.
@@ -241,7 +225,6 @@ def kubectl_autoscale(args: str) -> str:
 # ----- Cluster Management Commands -----
 
 
-@kubectl_func_register(KUBECTL_ADMIN)
 def kubectl_certificate(args: str) -> str:
     """
     Run a `kubectl certificate` command and return the output.
@@ -260,7 +243,6 @@ def kubectl_certificate(args: str) -> str:
     return _kubectl("kubectl certificate", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_cluster_info(args: str) -> str:
     """
     Run a `kubectl cluster-info` command and return the output.
@@ -280,7 +262,6 @@ def kubectl_cluster_info(args: str) -> str:
     return _kubectl("kubectl cluster-info", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_top(args: str) -> str:
     """
     Run a `kubectl top` command and return the output.
@@ -300,7 +281,6 @@ def kubectl_top(args: str) -> str:
     return _kubectl("kubectl top", args)
 
 
-@kubectl_func_register(KUBECTL_ADMIN)
 def kubectl_cordon(args: str) -> str:
     """
     Run a `kubectl cordon` command and return the output.
@@ -319,7 +299,6 @@ def kubectl_cordon(args: str) -> str:
     return _kubectl("kubectl cordon", args)
 
 
-@kubectl_func_register(KUBECTL_ADMIN)
 def kubectl_uncordon(args: str) -> str:
     """
     Run a `kubectl uncordon` command and return the output.
@@ -338,7 +317,6 @@ def kubectl_uncordon(args: str) -> str:
     return _kubectl("kubectl uncordon", args)
 
 
-@kubectl_func_register(KUBECTL_ADMIN)
 def kubectl_drain(args: str) -> str:
     """
     Run a `kubectl drain` command and return the output.
@@ -357,7 +335,6 @@ def kubectl_drain(args: str) -> str:
     return _kubectl("kubectl drain", args)
 
 
-@kubectl_func_register(KUBECTL_ADMIN)
 def kubectl_taint(args: str) -> str:
     """
     Run a `kubectl taint` command and return the output.
@@ -380,7 +357,6 @@ def kubectl_taint(args: str) -> str:
 # ----- Troubleshooting and Debugging Commands -----
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_describe(args: str) -> str:
     """
     Run a `kubectl describe` command and return the output.
@@ -400,7 +376,6 @@ def kubectl_describe(args: str) -> str:
     return _kubectl("kubectl describe", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_logs(args: str) -> str:
     """
     Run a `kubectl logs` command and return the output.
@@ -421,7 +396,6 @@ def kubectl_logs(args: str) -> str:
     return _kubectl("kubectl logs", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_attach(args: str) -> str:
     """
     Run a `kubectl attach` command and return the output.
@@ -442,7 +416,6 @@ def kubectl_attach(args: str) -> str:
     return _kubectl("kubectl attach", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_exec(args: str) -> str:
     """
     Run a `kubectl exec` command and return the output.
@@ -463,7 +436,6 @@ def kubectl_exec(args: str) -> str:
     return _kubectl("kubectl exec", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_port_forward(args: str) -> str:
 #     """
 #     Run a `kubectl port-forward` command and return the output.
@@ -484,7 +456,6 @@ def kubectl_exec(args: str) -> str:
 #     return _kubectl("kubectl port-forward", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_proxy(args: str) -> str:
 #     """
 #     Run a `kubectl proxy` command and return the output.
@@ -505,7 +476,6 @@ def kubectl_exec(args: str) -> str:
 #     return _kubectl("kubectl proxy", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_cp(args: str) -> str:
     """
     Run a `kubectl cp` command and return the output.
@@ -525,7 +495,6 @@ def kubectl_cp(args: str) -> str:
     return _kubectl("kubectl cp", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_auth(args: str) -> str:
     """
     Run a `kubectl auth` command and return the output.
@@ -545,7 +514,6 @@ def kubectl_auth(args: str) -> str:
     return _kubectl("kubectl auth", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_debug(args: str) -> str:
     """
     Run a `kubectl debug` command and return the output.
@@ -566,7 +534,6 @@ def kubectl_debug(args: str) -> str:
     return _kubectl("kubectl debug", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_events(args: str) -> str:
     """
     Run a `kubectl events` command and return the output.
@@ -589,7 +556,6 @@ def kubectl_events(args: str) -> str:
 # ----- Advanced Commands -----
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_diff(args: str) -> str:
     """
     Run a `kubectl diff` command and return the output.
@@ -608,7 +574,6 @@ def kubectl_diff(args: str) -> str:
     return _kubectl("kubectl diff", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_apply(args: str) -> str:
     """
     Run a `kubectl apply` command and return the output.
@@ -628,7 +593,6 @@ def kubectl_apply(args: str) -> str:
     return _kubectl("kubectl apply", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_patch(args: str) -> str:
     """
     Run a `kubectl patch` command and return the output.
@@ -647,7 +611,6 @@ def kubectl_patch(args: str) -> str:
     return _kubectl("kubectl patch", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_replace(args: str) -> str:
     """
     Run a `kubectl replace` command and return the output.
@@ -666,7 +629,6 @@ def kubectl_replace(args: str) -> str:
     return _kubectl("kubectl replace", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_wait(args: str) -> str:
 #     """
 #     Run a `kubectl wait` command and return the output.
@@ -687,7 +649,6 @@ def kubectl_replace(args: str) -> str:
 #     return _kubectl("kubectl wait", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_kustomize(args: str) -> str:
 #     """
 #     Run a `kubectl kustomize` command and return the output.
@@ -709,7 +670,6 @@ def kubectl_replace(args: str) -> str:
 # # ----- Settings Commands -----
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_label(args: str) -> str:
     """
     Run a `kubectl label` command and return the output.
@@ -730,7 +690,6 @@ def kubectl_label(args: str) -> str:
     return _kubectl("kubectl label", args)
 
 
-@kubectl_func_register(KUBECTL_RW)
 def kubectl_annotate(args: str) -> str:
     """
     Run a `kubectl annotate` command and return the output.
@@ -753,7 +712,6 @@ def kubectl_annotate(args: str) -> str:
 # ----- Other Commands -----
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_api_resources(args: str) -> str:
     """
     Run a `kubectl api-resources` command and return the output.
@@ -774,7 +732,6 @@ def kubectl_api_resources(args: str) -> str:
     return _kubectl("kubectl api-resources", args)
 
 
-@kubectl_func_register(KUBECTL_READONLY)
 def kubectl_api_versions(args: str) -> str:
     """
     Run a `kubectl api-versions` command and return the output.
@@ -793,7 +750,6 @@ def kubectl_api_versions(args: str) -> str:
     return _kubectl("kubectl api-versions", args)
 
 
-# @kubectl_func_register(KUBECTL_RW)
 # def kubectl_config(args: str) -> str:
 #     """
 #     Run a `kubectl config` command and return the output.
@@ -814,7 +770,6 @@ def kubectl_api_versions(args: str) -> str:
 #     return _kubectl("kubectl config", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_plugin(args: str) -> str:
 #     """
 #     Run a `kubectl plugin` command and return the output.
@@ -833,7 +788,6 @@ def kubectl_api_versions(args: str) -> str:
 #     return _kubectl("kubectl plugin", args)
 
 
-# @kubectl_func_register(KUBECTL_READONLY)
 # def kubectl_version(args: str) -> str:
 #     """
 #     Run a `kubectl version` command and return the output.
