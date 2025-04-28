@@ -1,8 +1,5 @@
 from mcp_kubernetes.command import ShellProcess
-from mcp_kubernetes.security_validator import (
-    KUBECTL_READ_OPERATIONS,
-    validate_namespace_scope,
-)
+from mcp_kubernetes.security_validator import validate_namespace_scope
 
 
 def _kubectl(command_prefix: str, args: str) -> str:
@@ -396,24 +393,24 @@ def kubectl_logs(args: str) -> str:
     return _kubectl("kubectl logs", args)
 
 
-def kubectl_attach(args: str) -> str:
-    """
-    Run a `kubectl attach` command and return the output.
+# def kubectl_attach(args: str) -> str:
+#     """
+#     Run a `kubectl attach` command and return the output.
 
-    Args:
-        args (str): The specific pod and options to pass to `kubectl attach`.
-                       For example:
-                       - "nginx" to attach to the nginx pod.
-                       - "nginx -c container-name" to attach to a specific container.
+#     Args:
+#         args (str): The specific pod and options to pass to `kubectl attach`.
+#                        For example:
+#                        - "nginx" to attach to the nginx pod.
+#                        - "nginx -c container-name" to attach to a specific container.
 
-    Returns:
-        str: The output of the `kubectl attach` command, or an error message if the command is invalid.
+#     Returns:
+#         str: The output of the `kubectl attach` command, or an error message if the command is invalid.
 
-    Notes:
-        - The `args` argument should not include the `kubectl attach` prefix; it is added automatically.
-        - This command may not work properly in all environments.
-    """
-    return _kubectl("kubectl attach", args)
+#     Notes:
+#         - The `args` argument should not include the `kubectl attach` prefix; it is added automatically.
+#         - This command may not work properly in all environments.
+#     """
+#     return _kubectl("kubectl attach", args)
 
 
 def kubectl_exec(args: str) -> str:
@@ -514,24 +511,24 @@ def kubectl_auth(args: str) -> str:
     return _kubectl("kubectl auth", args)
 
 
-def kubectl_debug(args: str) -> str:
-    """
-    Run a `kubectl debug` command and return the output.
+# def kubectl_debug(args: str) -> str:
+#     """
+#     Run a `kubectl debug` command and return the output.
 
-    Args:
-        args (str): The specific resource and options to pass to `kubectl debug`.
-                       For example:
-                       - "pod/nginx -it --image=busybox" to debug a pod with busybox.
-                       - "node/node-1 -it --image=ubuntu" to debug a node.
+#     Args:
+#         args (str): The specific resource and options to pass to `kubectl debug`.
+#                        For example:
+#                        - "pod/nginx -it --image=busybox" to debug a pod with busybox.
+#                        - "node/node-1 -it --image=ubuntu" to debug a node.
 
-    Returns:
-        str: The output of the `kubectl debug` command, or an error message if the command is invalid.
+#     Returns:
+#         str: The output of the `kubectl debug` command, or an error message if the command is invalid.
 
-    Notes:
-        - The `args` argument should not include the `kubectl debug` prefix; it is added automatically.
-        - This command may block and require interactive input.
-    """
-    return _kubectl("kubectl debug", args)
+#     Notes:
+#         - The `args` argument should not include the `kubectl debug` prefix; it is added automatically.
+#         - This command may block and require interactive input.
+#     """
+#     return _kubectl("kubectl debug", args)
 
 
 def kubectl_events(args: str) -> str:

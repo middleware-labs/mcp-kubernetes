@@ -30,7 +30,6 @@ KUBECTL_RW_TOOLS = [
     kubectl_replace,
     kubectl_cp,
     kubectl_exec,
-    kubectl_attach,
 ]
 
 KUBECTL_ADMIN_TOOLS = [
@@ -39,7 +38,6 @@ KUBECTL_ADMIN_TOOLS = [
     kubectl_drain,
     kubectl_taint,
     kubectl_certificate,
-    kubectl_debug,
 ]
 
 KUBECTL_ALL_TOOLS = KUBECTL_READ_ONLY_TOOLS + KUBECTL_RW_TOOLS + KUBECTL_ADMIN_TOOLS
