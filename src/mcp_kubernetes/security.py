@@ -104,6 +104,3 @@ class SecurityConfig:
                 return True
 
         return False
-
-
-security_config = SecurityConfig()
