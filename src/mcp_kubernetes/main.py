@@ -3,8 +3,8 @@ import argparse
 from fastmcp import FastMCP
 import logging
 from .kubeclient import setup_client, k8sapi
-from .command import  helm
-from .security import security_config
+from .command import helm
+from .config import config
 
 
 from .tool_registry import (
@@ -27,7 +27,7 @@ def add_kubectl_tools():
         mcp.tool()(func)
 
     # Register rw and admin functions
-    if not security_config.readonly:
+    if not config.security_config.readonly:
         for func in KUBECTL_RW_TOOLS + KUBECTL_ADMIN_TOOLS:
             logger.debug(f"Registering kubectl function: {func.__name__}")
             mcp.tool()(func)
@@ -73,14 +73,26 @@ def server():
         help="Comma-separated list of namespaces to allow (empty means all allowed)",
     )
 
+    # timeout configuration
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
+        help="Timeout for command execution in seconds, default is 60s",
+    )
+
     args = parser.parse_args()
     mcp.settings.port = args.port
 
     # Set security configuration
-    security_config.readonly = args.readonly
+    config.security_config.readonly = args.readonly
 
     if args.allow_namespaces:
-        security_config.allowed_namespaces = args.allow_namespaces
+        config.security_config.allowed_namespaces = args.allow_namespaces
+
+    # Set timeout configuration
+    if args.timeout:
+        config.timeout = args.timeout
 
     # Setup Kubernetes client
     setup_client()
@@ -90,9 +102,12 @@ def server():
     add_kubectl_tools()
 
     # Setup tools
-    mcp.mount("k8sapi",k8sapi)
+    mcp.mount("k8sapi", k8sapi)
     if not args.disable_helm:
-        mcp.tool("Run-helm-command","Run helm command and get result, The command should start with helm")(helm)
+        mcp.tool(
+            "Run-helm-command",
+            "Run helm command and get result, The command should start with helm",
+        )(helm)
 
     # Run the server
     mcp.run(transport=args.transport)

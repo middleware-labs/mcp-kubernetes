@@ -91,10 +91,12 @@ def validate_readonly(command: str, read_operations: List[str]) -> Optional[str]
     Returns an error message string if validation fails, None if validation passes.
     """
     # Import here to avoid circular import
-    from .security import security_config
+    from .config import config
 
     # Check if we're in readonly mode and if this is a write operation
-    if security_config.readonly and not is_read_operation(command, read_operations):
+    if config.security_config.readonly and not is_read_operation(
+        command, read_operations
+    ):
         return "Error: Cannot execute write operations in read-only mode"
 
     return None
@@ -107,18 +109,18 @@ def validate_namespace_scope(command: str) -> Optional[str]:
     Returns an error message string if validation fails, None if validation passes.
     """
     # Import here to avoid circular import
-    from .security import security_config
+    from .config import config
 
     # Extract namespace from command
     namespace = extract_namespace_from_command(command)
 
     # If command applies to all namespaces (--all-namespaces or -A), and there are namespace restrictions
-    if namespace == "*" and security_config.allowed_namespaces:
+    if namespace == "*" and config.security_config.allowed_namespaces:
         return "Error: Access to all namespaces is restricted by security configuration"
 
     # If a namespace is specified (or default "default" is used), check if it's allowed
     if namespace and namespace != "*":
-        if not security_config.is_namespace_allowed(namespace):
+        if not config.security_config.is_namespace_allowed(namespace):
             return f"Error: Access to namespace '{namespace}' is denied by security configuration"
 
     return None

@@ -113,11 +113,14 @@ MCP Kubernetes Server
 
 options:
   -h, --help            show this help message and exit
-  --disable-kubectl     Disable kubectl command execution
   --disable-helm        Disable helm command execution
   --transport {stdio,sse}
                         Transport mechanism to use (stdio or sse)
   --port PORT           Port to use for the server (only used with sse transport)
+  --readonly            Enable read-only mode (prevents write operations)
+  --allow-namespaces ALLOW_NAMESPACES
+                        Comma-separated list of namespaces to allow (empty means all allowed)
+  --timeout TIMEOUT     Timeout for command execution in seconds, default is 60s
 ```
 
 ## Usage

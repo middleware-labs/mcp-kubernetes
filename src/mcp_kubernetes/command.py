@@ -3,6 +3,7 @@ import logging
 import subprocess
 from typing import List, Union
 
+from .config import config
 from .security_validator import (
     HELM_READ_OPERATIONS,
     KUBECTL_READ_OPERATIONS,
@@ -50,7 +51,10 @@ class ShellProcess:
                 input=input,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
+                timeout=config.timeout,
             ).stdout.decode()
+        except subprocess.TimeoutExpired:
+            return f"Command execution timed out after {config.timeout} seconds"
         except subprocess.CalledProcessError as error:
             if self.return_err_output:
                 return error.stdout.decode()
