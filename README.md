@@ -130,6 +130,80 @@ What is the status of my Kubernetes cluster?
 What is wrong with my nginx pod?
 ```
 
+## Available Tools
+
+The mcp-kubernetes server provides the following tools for interacting with Kubernetes clusters:
+
+<details>
+
+<summary> Read-Only Tools </summary>
+
+#### Read-Only Tools
+
+- `kubectl_get`: Get Kubernetes resources
+- `kubectl_describe`: Show detailed information about Kubernetes resources
+- `kubectl_explain`: Get documentation for Kubernetes resources
+- `kubectl_logs`: Print logs from containers in pods
+- `kubectl_api_resources`: List available API resources
+- `kubectl_api_versions`: List available API versions
+- `kubectl_diff`: Show differences between current state and applied changes
+- `kubectl_cluster_info`: Display cluster information
+- `kubectl_top`: Display resource usage (CPU/Memory)
+- `kubectl_events`: List events in the cluster
+- `kubectl_auth`: Inspect authorization settings
+
+</details>
+
+<details>
+
+<summary> Read-Write Tools </summary>
+
+#### Read-Write Tools
+
+- `kubectl_create`: Create Kubernetes resources
+- `kubectl_delete`: Delete Kubernetes resources
+- `kubectl_apply`: Apply configurations to resources
+- `kubectl_expose`: Expose a resource as a new Kubernetes service
+- `kubectl_run`: Run a particular image in the cluster
+- `kubectl_set`: Set specific features on objects
+- `kubectl_rollout`: Manage rollouts of deployments
+- `kubectl_scale`: Scale deployments, statefulsets, and replicasets
+- `kubectl_autoscale`: Auto-scale deployments, statefulsets, and replicasets
+- `kubectl_label`: Update labels on resources
+- `kubectl_annotate`: Update annotations on resources
+- `kubectl_patch`: Update fields of resources using strategic merge patch
+- `kubectl_replace`: Replace existing resources
+- `kubectl_cp`: Copy files between containers and local filesystems
+- `kubectl_exec`: Execute commands in containers
+
+</details>
+
+<details>
+
+<summary> Admin Tools </summary>
+
+#### Admin Tools
+
+- `kubectl_cordon`: Mark node as unschedulable
+- `kubectl_uncordon`: Mark node as schedulable
+- `kubectl_drain`: Drain node for maintenance
+- `kubectl_taint`: Update taints on nodes
+- `kubectl_certificate`: Modify certificate resources
+
+</details>
+
+<details>
+<summary> Helm Tools </summary>
+
+#### Helm Tools
+
+- **Run-helm-command**: Run helm commands and get results
+
+</details>
+
+> Note: Read-write and admin tools are only available when the server is not run in read-only mode.
+
+
 ## Development
 
 How to run the project locally:
