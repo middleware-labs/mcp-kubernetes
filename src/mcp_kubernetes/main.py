@@ -2,7 +2,7 @@
 import argparse
 from fastmcp import FastMCP
 import logging
-from .kubeclient import setup_client, k8sapi
+from .kubeclient import setup_client
 from .command import helm
 from .config import config
 
@@ -102,7 +102,6 @@ def server():
     add_kubectl_tools()
 
     # Setup tools
-    mcp.mount("k8sapi", k8sapi)
     if not args.disable_helm:
         mcp.tool(
             "Run-helm-command",
