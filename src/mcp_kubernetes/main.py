@@ -2,8 +2,8 @@
 import argparse
 from fastmcp import FastMCP
 import logging
-from .kubeclient import setup_client
-from .command import helm
+from .kubeclient import setup_client, k8sapi
+from .command import  helm
 from .security import security_config
 
 
@@ -87,13 +87,12 @@ def server():
 
     # Setup kubectl tools
     # TODO: need a further discussion on using k8s sdk or kubectl, comment out these codes as they are duplicated with kubectl
-    # mcp.tool()(apis)
-    # mcp.tool()(crds)
-    # mcp.tool()(get)
     add_kubectl_tools()
 
+    # Setup tools
+    mcp.mount("k8sapi",k8sapi)
     if not args.disable_helm:
-        mcp.tool()(helm)
+        mcp.tool("Run-helm-command","Run helm command and get result, The command should start with helm")(helm)
 
     # Run the server
     mcp.run(transport=args.transport)
