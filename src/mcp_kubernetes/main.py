@@ -2,7 +2,7 @@
 import argparse
 from fastmcp import FastMCP
 import logging
-from .kubeclient import setup_client, apis, crds, get
+from .kubeclient import setup_client
 from .command import helm
 from .security import security_config
 
@@ -37,11 +37,6 @@ def server():
     parser = argparse.ArgumentParser(description="MCP Kubernetes Server")
 
     # command options
-    parser.add_argument(
-        "--disable-kubectl",
-        action="store_true",
-        help="Disable kubectl command execution",
-    )
     parser.add_argument(
         "--disable-helm",
         action="store_true",
@@ -89,15 +84,13 @@ def server():
     # Setup Kubernetes client
     setup_client()
 
-    # Setup tools
-    if args.disable_kubectl:
-        logger.debug("Registering kubectl API functions")
-        mcp.tool()(apis)
-        mcp.tool()(crds)
-        mcp.tool()(get)
-    else:
-        logger.debug("Registering kubectl CLI functions")
-        add_kubectl_tools()
+    # Setup kubectl tools
+    # TODO: need a further discussion on using k8s sdk or kubectl, comment out these codes as they are duplicated with kubectl
+    # mcp.tool()(apis)
+    # mcp.tool()(crds)
+    # mcp.tool()(get)
+    add_kubectl_tools()
+
     if not args.disable_helm:
         mcp.tool()(helm)
 

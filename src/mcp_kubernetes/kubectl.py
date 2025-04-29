@@ -393,26 +393,6 @@ def kubectl_logs(args: str) -> str:
     return _kubectl("kubectl logs", args)
 
 
-# def kubectl_attach(args: str) -> str:
-#     """
-#     Run a `kubectl attach` command and return the output.
-
-#     Args:
-#         args (str): The specific pod and options to pass to `kubectl attach`.
-#                        For example:
-#                        - "nginx" to attach to the nginx pod.
-#                        - "nginx -c container-name" to attach to a specific container.
-
-#     Returns:
-#         str: The output of the `kubectl attach` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl attach` prefix; it is added automatically.
-#         - This command may not work properly in all environments.
-#     """
-#     return _kubectl("kubectl attach", args)
-
-
 def kubectl_exec(args: str) -> str:
     """
     Run a `kubectl exec` command and return the output.
@@ -431,46 +411,6 @@ def kubectl_exec(args: str) -> str:
         - This command may modify container state depending on what is executed.
     """
     return _kubectl("kubectl exec", args)
-
-
-# def kubectl_port_forward(args: str) -> str:
-#     """
-#     Run a `kubectl port-forward` command and return the output.
-
-#     Args:
-#         args (str): The specific resource and port options to pass to `kubectl port-forward`.
-#                        For example:
-#                        - "pod/nginx 8080:80" to forward local port 8080 to pod port 80.
-#                        - "service/web 8080" to forward local port 8080 to service port.
-
-#     Returns:
-#         str: The output of the `kubectl port-forward` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl port-forward` prefix; it is added automatically.
-#         - This is a long-running command that may block execution.
-#     """
-#     return _kubectl("kubectl port-forward", args)
-
-
-# def kubectl_proxy(args: str) -> str:
-#     """
-#     Run a `kubectl proxy` command and return the output.
-
-#     Args:
-#         args (str): The specific options to pass to `kubectl proxy`.
-#                        For example:
-#                        - "--port=8080" to run the proxy on port 8080.
-#                        - "--address=0.0.0.0 --port=8080" to bind to all interfaces.
-
-#     Returns:
-#         str: The output of the `kubectl proxy` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl proxy` prefix; it is added automatically.
-#         - This is a long-running command that may block execution.
-#     """
-#     return _kubectl("kubectl proxy", args)
 
 
 def kubectl_cp(args: str) -> str:
@@ -509,26 +449,6 @@ def kubectl_auth(args: str) -> str:
         - The `args` argument should not include the `kubectl auth` prefix; it is added automatically.
     """
     return _kubectl("kubectl auth", args)
-
-
-# def kubectl_debug(args: str) -> str:
-#     """
-#     Run a `kubectl debug` command and return the output.
-
-#     Args:
-#         args (str): The specific resource and options to pass to `kubectl debug`.
-#                        For example:
-#                        - "pod/nginx -it --image=busybox" to debug a pod with busybox.
-#                        - "node/node-1 -it --image=ubuntu" to debug a node.
-
-#     Returns:
-#         str: The output of the `kubectl debug` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl debug` prefix; it is added automatically.
-#         - This command may block and require interactive input.
-#     """
-#     return _kubectl("kubectl debug", args)
 
 
 def kubectl_events(args: str) -> str:
@@ -626,47 +546,6 @@ def kubectl_replace(args: str) -> str:
     return _kubectl("kubectl replace", args)
 
 
-# def kubectl_wait(args: str) -> str:
-#     """
-#     Run a `kubectl wait` command and return the output.
-
-#     Args:
-#         args (str): The specific resource and options to pass to `kubectl wait`.
-#                        For example:
-#                        - "--for=condition=Ready pod/nginx" to wait until a pod is ready.
-#                        - "--for=delete pod/nginx --timeout=60s" to wait until a pod is deleted.
-
-#     Returns:
-#         str: The output of the `kubectl wait` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl wait` prefix; it is added automatically.
-#         - This command may block execution until the condition is met or timeout occurs.
-#     """
-#     return _kubectl("kubectl wait", args)
-
-
-# def kubectl_kustomize(args: str) -> str:
-#     """
-#     Run a `kubectl kustomize` command and return the output.
-
-#     Args:
-#         args (str): The specific directory or options to pass to `kubectl kustomize`.
-#                        For example:
-#                        - "./kustomize" to build kustomization in the ./kustomize directory.
-
-#     Returns:
-#         str: The output of the `kubectl kustomize` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl kustomize` prefix; it is added automatically.
-#     """
-#     return _kubectl("kubectl kustomize", args)
-
-
-# # ----- Settings Commands -----
-
-
 def kubectl_label(args: str) -> str:
     """
     Run a `kubectl label` command and return the output.
@@ -745,61 +624,3 @@ def kubectl_api_versions(args: str) -> str:
         - The `args` argument should not include the `kubectl api-versions` prefix; it is added automatically.
     """
     return _kubectl("kubectl api-versions", args)
-
-
-# def kubectl_config(args: str) -> str:
-#     """
-#     Run a `kubectl config` command and return the output.
-
-#     Args:
-#         args (str): The specific subcommand and options to pass to `kubectl config`.
-#                        For example:
-#                        - "current-context" to show the current context.
-#                        - "use-context my-context" to switch to a different context.
-#                        - "set-context --current --namespace=default" to set the default namespace.
-
-#     Returns:
-#         str: The output of the `kubectl config` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl config` prefix; it is added automatically.
-#     """
-#     return _kubectl("kubectl config", args)
-
-
-# def kubectl_plugin(args: str) -> str:
-#     """
-#     Run a `kubectl plugin` command and return the output.
-
-#     Args:
-#         args (str): The specific subcommand and options to pass to `kubectl plugin`.
-#                        For example:
-#                        - "list" to list available plugins.
-
-#     Returns:
-#         str: The output of the `kubectl plugin` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl plugin` prefix; it is added automatically.
-#     """
-#     return _kubectl("kubectl plugin", args)
-
-
-# def kubectl_version(args: str) -> str:
-#     """
-#     Run a `kubectl version` command and return the output.
-
-#     Args:
-#         args (str): The specific options to pass to `kubectl version`.
-#                        For example:
-#                        - "" (empty string) to show both client and server versions.
-#                        - "--client" to show only the client version.
-#                        - "-o json" to get the version information in JSON format.
-
-#     Returns:
-#         str: The output of the `kubectl version` command, or an error message if the command is invalid.
-
-#     Notes:
-#         - The `args` argument should not include the `kubectl version` prefix; it is added automatically.
-#     """
-#     return _kubectl("kubectl version", args)
