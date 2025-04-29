@@ -9,7 +9,8 @@ from .security import security_config
 
 from .tool_registry import (
     KUBECTL_READ_ONLY_TOOLS,
-    KUBECTL_ALL_TOOLS,
+    KUBECTL_RW_TOOLS,
+    KUBECTL_ADMIN_TOOLS,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,14 +21,14 @@ mcp = FastMCP("mcp-kubernetes")
 
 
 def add_kubectl_tools():
-    if security_config.readonly:
-        # Register read-only functions
-        for func in KUBECTL_READ_ONLY_TOOLS:
-            logger.debug(f"Registering kubectl function: {func.__name__}")
-            mcp.tool()(func)
-    else:
-        # Register all functions
-        for func in KUBECTL_ALL_TOOLS:
+    # Register read-only functions
+    for func in KUBECTL_READ_ONLY_TOOLS:
+        logger.debug(f"Registering kubectl function: {func.__name__}")
+        mcp.tool()(func)
+
+    # Register rw and admin functions
+    if not security_config.readonly:
+        for func in KUBECTL_RW_TOOLS + KUBECTL_ADMIN_TOOLS:
             logger.debug(f"Registering kubectl function: {func.__name__}")
             mcp.tool()(func)
 
