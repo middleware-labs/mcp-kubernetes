@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 import subprocess
 from typing import List, Union
 
@@ -7,6 +8,8 @@ from mcp_kubernetes.security_validator import (
     KUBECTL_READ_OPERATIONS,
     validate_command,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ShellProcess:
@@ -38,6 +41,7 @@ class ShellProcess:
         if isinstance(commands, str):
             commands = [commands]
         commands = ";".join(commands)
+        logger.debug(f"Executing command: {commands}")
         try:
             output = subprocess.run(
                 commands,
@@ -54,17 +58,6 @@ class ShellProcess:
         if self.strip_newlines:
             output = output.strip()
         return output
-
-
-async def kubectl(command: str) -> str:
-    """Run a kubectl command and return the output."""
-    error = validate_command(command, KUBECTL_READ_OPERATIONS, "kubectl")
-    if error:
-        return error
-
-    process = ShellProcess(command="kubectl")
-    output = process.run(command)
-    return output
 
 
 async def helm(command: str) -> str:
