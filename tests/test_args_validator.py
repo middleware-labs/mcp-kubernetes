@@ -2,6 +2,7 @@ import unittest
 import os
 import shutil
 from unittest import mock
+import subprocess
 
 from mcp_kubernetes.args_validator import (
     _is_cli_installed,
@@ -58,47 +59,47 @@ class TestArgsValidator(unittest.TestCase):
         config.disable_helm = True
         self.assertTrue(_validate_cli())
 
-    @mock.patch("os.path.exists")
-    @mock.patch("os.access")
-    @mock.patch.dict(os.environ, {}, clear=True)
-    def test_validate_kubeconfig_no_env_var(self, mock_access, mock_exists):
-        """Test _validate_kubeconfig when KUBECONFIG environment variable is not set."""
-        self.assertFalse(_validate_kubeconfig())
-        # These shouldn't be called if env var is not set
-        mock_exists.assert_not_called()
-        mock_access.assert_not_called()
+    @mock.patch("subprocess.run")
+    def test_validate_kubeconfig_successful(self, mock_run):
+        """Test _validate_kubeconfig when kubectl version runs successfully."""
+        # Setup mock to return a successful CompletedProcess
+        mock_run.return_value = subprocess.CompletedProcess(
+            args=["kubectl", "version", "--request-timeout=1s"],
+            returncode=0,
+            stdout=b"Client Version: v1.25.0\nServer Version: v1.26.0\n",
+            stderr=b"",
+        )
 
-    @mock.patch("os.path.exists")
-    @mock.patch("os.access")
-    @mock.patch.dict(os.environ, {"KUBECONFIG": "/path/to/kubeconfig"})
-    def test_validate_kubeconfig_file_not_found(self, mock_access, mock_exists):
-        """Test _validate_kubeconfig when kubeconfig file doesn't exist."""
-        mock_exists.return_value = False
-        self.assertFalse(_validate_kubeconfig())
-        mock_exists.assert_called_once_with("/path/to/kubeconfig")
-        mock_access.assert_not_called()
-
-    @mock.patch("os.path.exists")
-    @mock.patch("os.access")
-    @mock.patch.dict(os.environ, {"KUBECONFIG": "/path/to/kubeconfig"})
-    def test_validate_kubeconfig_file_not_readable(self, mock_access, mock_exists):
-        """Test _validate_kubeconfig when kubeconfig file is not readable."""
-        mock_exists.return_value = True
-        mock_access.return_value = False
-        self.assertFalse(_validate_kubeconfig())
-        mock_exists.assert_called_once_with("/path/to/kubeconfig")
-        mock_access.assert_called_once_with("/path/to/kubeconfig", os.R_OK)
-
-    @mock.patch("os.path.exists")
-    @mock.patch("os.access")
-    @mock.patch.dict(os.environ, {"KUBECONFIG": "/path/to/kubeconfig"})
-    def test_validate_kubeconfig_valid(self, mock_access, mock_exists):
-        """Test _validate_kubeconfig with valid kubeconfig."""
-        mock_exists.return_value = True
-        mock_access.return_value = True
         self.assertTrue(_validate_kubeconfig())
-        mock_exists.assert_called_once_with("/path/to/kubeconfig")
-        mock_access.assert_called_once_with("/path/to/kubeconfig", os.R_OK)
+        mock_run.assert_called_once_with(
+            ["kubectl", "version", "--request-timeout=1s"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+    @mock.patch("subprocess.run")
+    def test_validate_kubeconfig_command_failed(self, mock_run):
+        """Test _validate_kubeconfig when kubectl version fails."""
+        # Setup mock to raise CalledProcessError
+        mock_run.side_effect = subprocess.CalledProcessError(
+            returncode=1,
+            cmd=["kubectl", "version", "--request-timeout=1s"],
+            output=b"",
+            stderr=b"Error from server: connection refused",
+        )
+
+        self.assertFalse(_validate_kubeconfig())
+        mock_run.assert_called_once()
+
+    @mock.patch("subprocess.run")
+    def test_validate_kubeconfig_exception(self, mock_run):
+        """Test _validate_kubeconfig when an unexpected exception occurs."""
+        # Setup mock to raise a generic exception
+        mock_run.side_effect = Exception("Some unexpected error")
+
+        self.assertFalse(_validate_kubeconfig())
+        mock_run.assert_called_once()
 
     @mock.patch("mcp_kubernetes.args_validator._validate_cli")
     @mock.patch("mcp_kubernetes.args_validator._validate_kubeconfig")

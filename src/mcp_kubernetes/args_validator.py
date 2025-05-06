@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import subprocess
 
 from .config import config
 
@@ -34,21 +35,25 @@ def _validate_cli() -> bool:
 
 def _validate_kubeconfig() -> bool:
     """
-    Check if the kubeconfig file is present and valid.
+    Check if kubectl is properly configured and can connect to the cluster.
     """
-
-    kubeconfig_path = os.getenv("KUBECONFIG")
-    if not kubeconfig_path:
-        logger.error("KUBECONFIG environment variable is not set.")
+    try:
+        # Run kubectl version with a short timeout to verify it's configured
+        subprocess.run(
+            ["kubectl", "version", "--request-timeout=1s"],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        logger.error(
+            "kubectl is not properly configured or cannot connect to the cluster."
+        )
         return False
-    if not os.path.exists(kubeconfig_path):
-        logger.error(f"Kubeconfig file not found at {kubeconfig_path}.")
+    except Exception as e:
+        logger.error(f"Error validating kubectl configuration: {str(e)}")
         return False
-    if not os.access(kubeconfig_path, os.R_OK):
-        logger.error(f"Kubeconfig file at {kubeconfig_path} is not readable.")
-        return False
-
-    return True
 
 
 def validate() -> bool:
