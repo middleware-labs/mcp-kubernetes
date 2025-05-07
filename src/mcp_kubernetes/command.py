@@ -63,25 +63,3 @@ class ShellProcess:
         if self.strip_newlines:
             output = output.strip()
         return output
-
-
-async def helm(command: str) -> str:
-    """Run a helm command and return the output."""
-    error = validate_command(command, HELM_READ_OPERATIONS, "helm")
-    if error:
-        return error
-
-    process = ShellProcess(command="helm")
-    output = process.run(command)
-    return output
-
-
-async def cilium(command: str) -> str:
-    """Run a cilium command and return the output."""
-    error = validate_command(command, CILIUM_READ_OPERATIONS, "cilium")
-    if error:
-        return error
-
-    process = ShellProcess(command="cilium")
-    output = process.run(command)
-    return output

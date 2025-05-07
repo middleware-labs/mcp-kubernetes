@@ -5,8 +5,9 @@ from fastmcp import FastMCP
 import logging
 
 from .args_validator import validate
-from .command import helm, cilium
+from .cilium import cilium
 from .config import config
+from .helm import helm
 from .kubeclient import setup_client
 from .tool_registry import (
     KUBECTL_READ_ONLY_TOOLS,
