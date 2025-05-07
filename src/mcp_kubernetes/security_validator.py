@@ -41,6 +41,27 @@ HELM_READ_OPERATIONS = [
     "help",
 ]
 
+CILIUM_READ_OPERATIONS = [
+    "status",
+    "version",
+    "config",
+    "help",
+    "context",
+    "connectivity",
+    "endpoint",
+    "identity",
+    "ip",
+    "map",
+    "metrics",
+    "monitor",
+    "policy",
+    "hubble",
+    "bpf",
+    "list",
+    "observe",
+    "service",
+]
+
 
 def is_read_operation(command: str, allowed_operations: List[str]) -> bool:
     """Check if a command is a read operation."""
@@ -50,7 +71,7 @@ def is_read_operation(command: str, allowed_operations: List[str]) -> bool:
 
     for part in cmd_parts:
         if not part.startswith("-"):
-            if part != "kubectl" and part != "helm":
+            if part != "kubectl" and part != "helm" and part != "cilium":
                 operation = part
                 break
 

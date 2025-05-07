@@ -4,7 +4,7 @@ from fastmcp import FastMCP
 import logging
 
 from .args_validator import validate
-from .command import helm
+from .command import helm, cilium
 from .config import config
 from .kubeclient import setup_client
 from .tool_registry import (
@@ -39,9 +39,10 @@ def server():
 
     # command options
     parser.add_argument(
-        "--disable-helm",
-        action="store_true",
-        help="Disable helm command execution",
+        "--additional-tools",
+        type=str,
+        default="",
+        help="Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium",
     )
 
     # Transport options
@@ -94,8 +95,32 @@ def server():
     if args.timeout:
         config.timeout = args.timeout
 
-    # other configurations
-    config.disable_helm = args.disable_helm
+    # Parse and register supported tools
+    if args.additional_tools:
+        # Split the comma-separated list and strip whitespace
+        requested_tools = [
+            tool.strip().lower()
+            for tool in args.additional_tools.split(",")
+            if tool.strip()
+        ]
+
+        # Validate that all requested tools are supported
+        unsupported_tools = [
+            tool for tool in requested_tools if tool not in config.available_tools
+        ]
+        if unsupported_tools:
+            logger.error(
+                f"Error: Unsupported tool(s) specified: {', '.join(unsupported_tools)}"
+            )
+            logger.error(
+                f"Supported tools are: {', '.join(sorted(config.available_tools))}"
+            )
+            return
+
+        # Add valid tools to the additional_tools set
+        for tool in requested_tools:
+            config.additional_tools.add(tool)
+            logger.info(f"Enabling support for tool: {tool}")
 
     # Note: needs to be done after all the configurations are set
     if not validate():
@@ -109,18 +134,25 @@ def server():
     # TODO: need a further discussion on using k8s sdk or kubectl, comment out these codes as they are duplicated with kubectl
     add_kubectl_tools()
 
-    # Setup tools
-    if not args.disable_helm:
+    # Setup additional tools based on configuration
+    if "helm" in config.additional_tools:
         logger.debug("Registering helm function")
         mcp.tool(
             "Run-helm-command",
             "Run helm command and get result, The command should start with helm",
         )(helm)
 
+    if "cilium" in config.additional_tools:
+        logger.debug("Registering cilium function")
+        mcp.tool(
+            "Run-cilium-command",
+            "Run cilium command and get result, The command should start with cilium",
+        )(cilium)
+
     # Run the server
     mcp.run(transport=args.transport)
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     server()

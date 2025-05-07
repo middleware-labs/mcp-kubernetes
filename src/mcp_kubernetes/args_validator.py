@@ -19,9 +19,12 @@ def _validate_cli() -> bool:
     """
     Check if the required CLI tools are installed.
     """
-    required_tools = ["kubectl"]
-    if not config.disable_helm:
-        required_tools.append("helm")
+    # kubectl is always required
+    required_tools = {"kubectl"}
+
+    # Add other tools that are enabled
+    for tool in config.additional_tools:
+        required_tools.add(tool)
 
     for tool in required_tools:
         if not _is_cli_installed(tool):

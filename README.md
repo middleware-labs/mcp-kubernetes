@@ -107,13 +107,15 @@ Environment variables:
 Command line arguments:
 
 ```sh
-usage: mcp-kubernetes [-h] [--disable-kubectl] [--disable-helm] [--transport {stdio,sse}] [--port PORT]
+usage: main.py [-h] [--additional-tools ADDITIONAL_TOOLS] [--transport {stdio,sse}] [--port PORT] [--readonly] [--allow-namespaces ALLOW_NAMESPACES]
+               [--timeout TIMEOUT]
 
 MCP Kubernetes Server
 
 options:
   -h, --help            show this help message and exit
-  --disable-helm        Disable helm command execution
+  --additional-tools ADDITIONAL_TOOLS
+                        Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium
   --transport {stdio,sse}
                         Transport mechanism to use (stdio or sse)
   --port PORT           Port to use for the server (only used with sse transport)
