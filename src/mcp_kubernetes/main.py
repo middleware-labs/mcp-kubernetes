@@ -2,11 +2,11 @@
 import argparse
 from fastmcp import FastMCP
 import logging
-from .kubeclient import setup_client
+
+from .args_validator import validate
 from .command import helm
 from .config import config
-
-
+from .kubeclient import setup_client
 from .tool_registry import (
     KUBECTL_READ_ONLY_TOOLS,
     KUBECTL_RW_TOOLS,
@@ -94,6 +94,14 @@ def server():
     if args.timeout:
         config.timeout = args.timeout
 
+    # other configurations
+    config.disable_helm = args.disable_helm
+
+    # Note: needs to be done after all the configurations are set
+    if not validate():
+        logger.error("Validation failed. Exiting.")
+        return
+
     # Setup Kubernetes client
     setup_client()
 
@@ -103,6 +111,7 @@ def server():
 
     # Setup tools
     if not args.disable_helm:
+        logger.debug("Registering helm function")
         mcp.tool(
             "Run-helm-command",
             "Run helm command and get result, The command should start with helm",
