@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import argparse
+import sys
 from fastmcp import FastMCP
 import logging
 
@@ -115,7 +116,7 @@ def server():
             logger.error(
                 f"Supported tools are: {', '.join(sorted(config.available_tools))}"
             )
-            return
+            sys.exit(1)
 
         # Add valid tools to the additional_tools set
         for tool in requested_tools:
@@ -125,7 +126,7 @@ def server():
     # Note: needs to be done after all the configurations are set
     if not validate():
         logger.error("Validation failed. Exiting.")
-        return
+        sys.exit(1)
 
     # Setup Kubernetes client
     setup_client()
