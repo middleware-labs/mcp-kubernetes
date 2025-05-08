@@ -19,11 +19,11 @@ class TestArgsValidator(unittest.TestCase):
     def setUp(self):
         """Set up test environment."""
         # Save original config state
-        self.original_disable_helm = config.disable_helm
+        self.original_additional_tools = config.additional_tools.copy()
 
     def tearDown(self):
         """Restore original config state after tests."""
-        config.disable_helm = self.original_disable_helm
+        config.additional_tools = self.original_additional_tools.copy()
 
     @mock.patch("shutil.which")
     def test_is_cli_installed(self, mock_which):
@@ -50,13 +50,39 @@ class TestArgsValidator(unittest.TestCase):
         mock_is_cli_installed.side_effect = lambda tool: tool != "kubectl"
         self.assertFalse(_validate_cli())
 
-        # Test when helm is not installed but required
+        # Test when helm is in additional tools but not installed
         mock_is_cli_installed.side_effect = lambda tool: tool != "helm"
-        config.disable_helm = False
+        config.additional_tools = {"helm"}
         self.assertFalse(_validate_cli())
 
-        # Test when helm is not installed but disabled
-        config.disable_helm = True
+        # Test when helm is not in additional tools
+        config.additional_tools = set()
+        self.assertTrue(_validate_cli())
+
+    @mock.patch("mcp_kubernetes.args_validator._is_cli_installed")
+    def test_validate_cli_with_supported_tools(self, mock_is_cli_installed):
+        """Test _validate_cli function with additional_tools config."""
+        # Test when cilium is supported and installed
+        config.additional_tools = {"cilium"}
+        mock_is_cli_installed.side_effect = lambda tool: True
+        self.assertTrue(_validate_cli())
+
+        # Test when cilium is supported but not installed
+        mock_is_cli_installed.side_effect = lambda tool: tool != "cilium"
+        self.assertFalse(_validate_cli())
+
+        # Test with multiple tools supported
+        config.additional_tools = {"helm", "cilium"}
+        mock_is_cli_installed.side_effect = lambda tool: True
+        self.assertTrue(_validate_cli())
+
+        # Test when one of multiple tools is not installed
+        mock_is_cli_installed.side_effect = lambda tool: tool != "cilium"
+        self.assertFalse(_validate_cli())
+
+        # Test with no additional tools
+        config.additional_tools = set()
+        mock_is_cli_installed.side_effect = lambda tool: tool == "kubectl"
         self.assertTrue(_validate_cli())
 
     @mock.patch("subprocess.run")
