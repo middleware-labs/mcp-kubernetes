@@ -1,0 +1,51 @@
+package version
+
+import (
+	"fmt"
+	"runtime"
+)
+
+// Version information
+var (
+	// Major version component
+	Major = "0"
+	// Minor version component
+	Minor = "0"
+	// Patch version component
+	Patch = "1"
+	// BuildMetadata is extra build time data
+	BuildMetadata = ""
+	// GitCommit is the git sha1
+	GitCommit = ""
+	// GitTreeState describes the state of the git tree
+	GitTreeState = ""
+)
+
+// GetVersion returns the version string
+func GetVersion() string {
+	version := fmt.Sprintf("%s.%s.%s", Major, Minor, Patch)
+	if BuildMetadata != "" {
+		version = fmt.Sprintf("%s+%s", version, BuildMetadata)
+	}
+	return version
+}
+
+// GetUserAgent returns the user agent string
+func GetUserAgent() string {
+	return fmt.Sprintf("mcp-kubernetes/%s (%s/%s)", 
+		GetVersion(), 
+		runtime.GOOS, 
+		runtime.GOARCH,
+	)
+}
+
+// GetVersionInfo returns a map with all version information
+func GetVersionInfo() map[string]string {
+	return map[string]string{
+		"version":      GetVersion(),
+		"gitCommit":    GitCommit,
+		"gitTreeState": GitTreeState,
+		"goVersion":    runtime.Version(),
+		"platform":     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+	}
+}

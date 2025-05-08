@@ -1,0 +1,20 @@
+package tools
+
+import (
+	"github.com/Azure/mcp-kubernetes/go/internal/config"
+)
+
+// CommandExecutor defines the interface for executing commands
+// This ensures all command executors follow the same pattern and signature
+type CommandExecutor interface {
+	Execute(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error)
+}
+
+// CommandExecutorFunc is a function type that implements CommandExecutor
+// This allows regular functions to be used as CommandExecutors without having to create a struct
+type CommandExecutorFunc func(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error)
+
+// Execute implements the CommandExecutor interface for CommandExecutorFunc
+func (f CommandExecutorFunc) Execute(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
+	return f(params, cfg)
+}
