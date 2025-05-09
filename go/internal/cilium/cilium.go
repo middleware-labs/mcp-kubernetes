@@ -40,9 +40,3 @@ func (e *CiliumExecutor) Execute(params map[string]interface{}, cfg *config.Conf
 		"text": output,
 	}, nil
 }
-
-// ExecuteCilium handles cilium command execution (legacy function for backward compatibility)
-func ExecuteCilium(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
-	executor := NewExecutor()
-	return executor.Execute(params, cfg)
-}

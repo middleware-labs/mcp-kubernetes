@@ -33,12 +33,6 @@ func (e *KubectlExecutor) Execute(params map[string]interface{}, cfg *config.Con
 	return e.executeCommand(kubectlCmd, "", cfg)
 }
 
-// ExecuteKubectl handles kubectl command execution (legacy function for backward compatibility)
-func ExecuteKubectl(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
-	executor := NewExecutor()
-	return executor.Execute(params, cfg)
-}
-
 // ExecuteSpecificCommand executes a specific kubectl command with the given arguments
 func (e *KubectlExecutor) ExecuteSpecificCommand(cmd string, params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
 	args, ok := params["args"].(string)

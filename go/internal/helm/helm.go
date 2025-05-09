@@ -40,9 +40,3 @@ func (e *HelmExecutor) Execute(params map[string]interface{}, cfg *config.Config
 		"text": output,
 	}, nil
 }
-
-// ExecuteHelm handles helm command execution (legacy function for backward compatibility)
-func ExecuteHelm(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
-	executor := NewExecutor()
-	return executor.Execute(params, cfg)
-}
