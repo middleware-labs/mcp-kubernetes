@@ -4,10 +4,14 @@ import (
 	"github.com/Azure/mcp-kubernetes/go/internal/command"
 	"github.com/Azure/mcp-kubernetes/go/internal/config"
 	"github.com/Azure/mcp-kubernetes/go/internal/security"
+	"github.com/Azure/mcp-kubernetes/go/internal/tools"
 )
 
 // CiliumExecutor implements the CommandExecutor interface for cilium commands
 type CiliumExecutor struct{}
+
+// This line ensures CiliumExecutor implements the CommandExecutor interface
+var _ tools.CommandExecutor = (*CiliumExecutor)(nil)
 
 // NewExecutor creates a new CiliumExecutor instance
 func NewExecutor() *CiliumExecutor {

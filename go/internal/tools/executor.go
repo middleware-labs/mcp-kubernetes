@@ -14,6 +14,8 @@ type CommandExecutor interface {
 // This allows regular functions to be used as CommandExecutors without having to create a struct
 type CommandExecutorFunc func(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error)
 
+var _ CommandExecutor = CommandExecutorFunc(nil)
+
 // Execute implements the CommandExecutor interface for CommandExecutorFunc
 func (f CommandExecutorFunc) Execute(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
 	return f(params, cfg)

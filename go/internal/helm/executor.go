@@ -4,10 +4,13 @@ import (
 	"github.com/Azure/mcp-kubernetes/go/internal/command"
 	"github.com/Azure/mcp-kubernetes/go/internal/config"
 	"github.com/Azure/mcp-kubernetes/go/internal/security"
+	"github.com/Azure/mcp-kubernetes/go/internal/tools"
 )
 
 // HelmExecutor implements the CommandExecutor interface for helm commands
 type HelmExecutor struct{}
+
+var _ tools.CommandExecutor = (*HelmExecutor)(nil)
 
 // NewExecutor creates a new HelmExecutor instance
 func NewExecutor() *HelmExecutor {

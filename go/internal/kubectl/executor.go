@@ -6,10 +6,14 @@ import (
 	"github.com/Azure/mcp-kubernetes/go/internal/command"
 	"github.com/Azure/mcp-kubernetes/go/internal/config"
 	"github.com/Azure/mcp-kubernetes/go/internal/security"
+	"github.com/Azure/mcp-kubernetes/go/internal/tools"
 )
 
 // KubectlExecutor implements the CommandExecutor interface for kubectl commands
 type KubectlExecutor struct{}
+
+// This line ensures KubectlExecutor implements the CommandExecutor interface
+var _ tools.CommandExecutor = (*KubectlExecutor)(nil)
 
 // NewExecutor creates a new KubectlExecutor instance
 func NewExecutor() *KubectlExecutor {

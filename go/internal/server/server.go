@@ -47,12 +47,12 @@ func (s *Service) Initialize() error {
 
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
-		helmTool := tools.RegisterHelm()
+		helmTool := helm.RegisterHelm()
 		s.mcpServer.AddTool(helmTool, tools.CreateToolHandler(helm.NewExecutor(), s.cfg))
 	}
 
 	if s.cfg.AdditionalTools["cilium"] {
-		ciliumTool := tools.RegisterCilium()
+		ciliumTool := cilium.RegisterCilium()
 		s.mcpServer.AddTool(ciliumTool, tools.CreateToolHandler(cilium.NewExecutor(), s.cfg))
 	}
 
@@ -81,8 +81,8 @@ func (s *Service) Run() error {
 // registerKubectlCommands registers individual kubectl commands as separate tools
 func (s *Service) registerKubectlCommands() {
 	// Register read-only kubectl commands
-	for _, cmd := range tools.GetReadOnlyKubectlCommands() {
-		kubectlTool := tools.RegisterKubectlCommand(cmd)
+	for _, cmd := range kubectl.GetReadOnlyKubectlCommands() {
+		kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 		commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
 		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 	}
@@ -90,15 +90,15 @@ func (s *Service) registerKubectlCommands() {
 	// Only register read-write and admin commands if not in read-only mode
 	if !s.cfg.ReadOnly {
 		// Register read-write kubectl commands
-		for _, cmd := range tools.GetReadWriteKubectlCommands() {
-			kubectlTool := tools.RegisterKubectlCommand(cmd)
+		for _, cmd := range kubectl.GetReadWriteKubectlCommands() {
+			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
 			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 		}
 
 		// Register admin kubectl commands
-		for _, cmd := range tools.GetAdminKubectlCommands() {
-			kubectlTool := tools.RegisterKubectlCommand(cmd)
+		for _, cmd := range kubectl.GetAdminKubectlCommands() {
+			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
 			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 		}
