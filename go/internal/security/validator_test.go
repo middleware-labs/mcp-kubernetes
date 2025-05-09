@@ -49,12 +49,12 @@ func TestValidatorNamespaceRestriction(t *testing.T) {
 
 func TestNamespaceHandling(t *testing.T) {
 	// Test namespace handling via public ValidateCommand method
-	
+
 	// Setup validator with namespace restrictions
 	secConfig := NewSecurityConfig()
 	secConfig.SetAllowedNamespaces("test-ns,another-ns,default")
 	validator := NewValidator(secConfig)
-	
+
 	// Test cases for namespace handling
 	tests := []struct {
 		command   string
@@ -68,10 +68,10 @@ func TestNamespaceHandling(t *testing.T) {
 		{"kubectl get pods --all-namespaces", true, "restricted by security configuration"},
 		{"kubectl get pods -A", true, "restricted by security configuration"},
 	}
-	
+
 	for _, tc := range tests {
 		err := validator.ValidateCommand(tc.command, CommandTypeKubectl)
-		
+
 		if tc.shouldErr && err == nil {
 			t.Errorf("ValidateCommand(%q) should have failed", tc.command)
 		} else if !tc.shouldErr && err != nil {
@@ -87,7 +87,7 @@ func TestReadOperationsValidation(t *testing.T) {
 	secConfig := NewSecurityConfig()
 	secConfig.ReadOnly = true
 	validator := NewValidator(secConfig)
-	
+
 	// Test cases for read operations
 	tests := []struct {
 		command     string
@@ -106,10 +106,10 @@ func TestReadOperationsValidation(t *testing.T) {
 		{"cilium endpoint list", CommandTypeCilium, false},
 		{"cilium install", CommandTypeCilium, true},
 	}
-	
+
 	for _, tc := range tests {
 		err := validator.ValidateCommand(tc.command, tc.commandType)
-		
+
 		if tc.shouldErr && err == nil {
 			t.Errorf("ValidateCommand(%q, %q) should have failed", tc.command, tc.commandType)
 		} else if !tc.shouldErr && err != nil {
@@ -130,18 +130,18 @@ func TestValidateCommand(t *testing.T) {
 	}{
 		{"Read operation in readonly mode", true, "", "kubectl get pods", CommandTypeKubectl, false},
 		{"Write operation in readonly mode", true, "", "kubectl delete pods", CommandTypeKubectl, true},
-		
+
 		{"Command in allowed namespace", false, "ns1,ns2", "kubectl get pods -n ns1", CommandTypeKubectl, false},
 		{"Command in disallowed namespace", false, "ns1,ns2", "kubectl get pods -n ns3", CommandTypeKubectl, true},
-		
+
 		{"All namespaces restricted", false, "ns1,ns2", "kubectl get pods --all-namespaces", CommandTypeKubectl, true},
-		
+
 		// Combined restrictions
 		{"Read op in allowed ns with readonly", true, "ns1", "kubectl get pods -n ns1", CommandTypeKubectl, false},
 		{"Read op in disallowed ns with readonly", true, "ns1", "kubectl get pods -n ns2", CommandTypeKubectl, true},
 		{"Write op in allowed ns with readonly", true, "ns1", "kubectl delete pods -n ns1", CommandTypeKubectl, true},
 	}
-	
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			secConfig := NewSecurityConfig()
@@ -149,10 +149,10 @@ func TestValidateCommand(t *testing.T) {
 			if tc.namespaces != "" {
 				secConfig.SetAllowedNamespaces(tc.namespaces)
 			}
-			
+
 			validator := NewValidator(secConfig)
 			err := validator.ValidateCommand(tc.command, tc.commandType)
-			
+
 			if tc.shouldErr && err == nil {
 				t.Errorf("ValidateCommand should have failed")
 			} else if !tc.shouldErr && err != nil {

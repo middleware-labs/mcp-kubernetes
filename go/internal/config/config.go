@@ -17,9 +17,9 @@ type ConfigData struct {
 	SecurityConfig *security.SecurityConfig
 
 	// Command-line specific options
-	Transport      string
-	Port           int
-	ReadOnly       bool
+	Transport       string
+	Port            int
+	ReadOnly        bool
 	AllowNamespaces string
 }
 
@@ -42,16 +42,16 @@ func (cfg *ConfigData) ParseFlags() {
 	flag.StringVar(&cfg.Transport, "transport", "stdio", "Transport mechanism to use (stdio or sse)")
 	flag.IntVar(&cfg.Port, "port", 8000, "Port to use for the server (only used with sse transport)")
 	flag.IntVar(&cfg.Timeout, "timeout", 60, "Timeout for command execution in seconds, default is 60s")
-	
+
 	// Tools configuration
-	additionalTools := flag.String("additional-tools", "", 
+	additionalTools := flag.String("additional-tools", "",
 		"Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium")
-	
+
 	// Security settings
 	flag.BoolVar(&cfg.ReadOnly, "readonly", false, "Enable read-only mode (prevents write operations)")
-	flag.StringVar(&cfg.AllowNamespaces, "allow-namespaces", "", 
+	flag.StringVar(&cfg.AllowNamespaces, "allow-namespaces", "",
 		"Comma-separated list of namespaces to allow (empty means all allowed)")
-	
+
 	flag.Parse()
 
 	// Update security config

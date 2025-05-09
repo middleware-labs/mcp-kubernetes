@@ -72,7 +72,7 @@ func (v *Validator) getReadOperationsList(commandType string) []string {
 // ValidateCommand validates a command against all security settings
 func (v *Validator) ValidateCommand(command, commandType string) error {
 	readOperations := v.getReadOperationsList(commandType)
-	
+
 	// Check readonly restrictions
 	if err := v.validateReadOnly(command, readOperations); err != nil {
 		return err

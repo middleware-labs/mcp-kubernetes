@@ -15,7 +15,7 @@ import (
 
 // Service represents the MCP Kubernetes service
 type Service struct {
-	cfg      *config.ConfigData
+	cfg       *config.ConfigData
 	mcpServer *server.MCPServer
 }
 
@@ -69,7 +69,7 @@ func (s *Service) Run() error {
 	} else if s.cfg.Transport == "sse" {
 		// Create SSE server using the MCP server
 		sse := server.NewSSEServer(s.mcpServer)
-		
+
 		log.Println("MCP Kubernetes version:", version.GetVersion())
 		log.Printf("SSE server listening on port: %d", s.cfg.Port)
 		return sse.Start(fmt.Sprintf(":%d", s.cfg.Port))

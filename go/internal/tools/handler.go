@@ -18,7 +18,7 @@ func CreateToolHandler(executor CommandExecutor, cfg *config.ConfigData) func(ct
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Convert result to mcp.CallToolResult
 		if resultMap, ok := result.(map[string]interface{}); ok {
 			if errMsg, ok := resultMap["error"]; ok && errMsg != nil {

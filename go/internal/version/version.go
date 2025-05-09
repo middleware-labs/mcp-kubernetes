@@ -32,9 +32,9 @@ func GetVersion() string {
 
 // GetUserAgent returns the user agent string
 func GetUserAgent() string {
-	return fmt.Sprintf("mcp-kubernetes/%s (%s/%s)", 
-		GetVersion(), 
-		runtime.GOOS, 
+	return fmt.Sprintf("mcp-kubernetes/%s (%s/%s)",
+		GetVersion(),
+		runtime.GOOS,
 		runtime.GOARCH,
 	)
 }

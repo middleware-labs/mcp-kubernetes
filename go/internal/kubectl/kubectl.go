@@ -51,7 +51,7 @@ func (e *KubectlExecutor) ExecuteSpecificCommand(cmd string, params map[string]i
 	if args != "" {
 		fullCmd += " " + args
 	}
-	
+
 	// Validate the command against security settings
 	validator := security.NewValidator(cfg.SecurityConfig)
 	err := validator.ValidateCommand(fullCmd, security.CommandTypeKubectl)
@@ -74,7 +74,7 @@ func (e *KubectlExecutor) executeCommand(cmd string, args string, cfg *config.Co
 			"error": "Command execution error: " + err.Error(),
 		}, nil
 	}
-	
+
 	return map[string]interface{}{
 		"text": output,
 	}, nil
@@ -91,7 +91,7 @@ func CreateCommandExecutor(cmd string) func(params map[string]interface{}, cfg *
 // executeKubectlCommand executes a kubectl command with the given arguments
 func (e *KubectlExecutor) executeKubectlCommand(cmd string, args string, cfg *config.ConfigData) (string, error) {
 	process := command.NewShellProcess("kubectl", cfg.Timeout)
-	
+
 	var fullCmd string
 	if strings.HasPrefix(cmd, "kubectl ") {
 		// If command already includes "kubectl", use it as is (for backward compatibility)
@@ -103,6 +103,6 @@ func (e *KubectlExecutor) executeKubectlCommand(cmd string, args string, cfg *co
 			fullCmd += " " + args
 		}
 	}
-	
+
 	return process.Run(fullCmd)
 }
