@@ -83,7 +83,7 @@ func (s *Service) registerKubectlCommands() {
 	// Register read-only kubectl commands
 	for _, cmd := range kubectl.GetReadOnlyKubectlCommands() {
 		kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-		commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+		commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
 		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 	}
 
@@ -92,14 +92,14 @@ func (s *Service) registerKubectlCommands() {
 		// Register read-write kubectl commands
 		for _, cmd := range kubectl.GetReadWriteKubectlCommands() {
 			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
 			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 		}
 
 		// Register admin kubectl commands
 		for _, cmd := range kubectl.GetAdminKubectlCommands() {
 			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
 			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
 		}
 	}

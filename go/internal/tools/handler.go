@@ -16,18 +16,9 @@ func CreateToolHandler(executor CommandExecutor, cfg *config.ConfigData) func(ct
 	return func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		result, err := executor.Execute(req.Params.Arguments, cfg)
 		if err != nil {
-			return nil, err
+			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		// Convert result to mcp.CallToolResult
-		if resultMap, ok := result.(map[string]interface{}); ok {
-			if errMsg, ok := resultMap["error"]; ok && errMsg != nil {
-				return mcp.NewToolResultError(errMsg.(string)), nil
-			}
-			if text, ok := resultMap["text"]; ok && text != nil {
-				return mcp.NewToolResultText(text.(string)), nil
-			}
-		}
-		return mcp.NewToolResultText(""), nil
+		return mcp.NewToolResultText(result), nil
 	}
 }

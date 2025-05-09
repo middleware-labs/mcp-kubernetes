@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"fmt"
+
 	"github.com/Azure/mcp-kubernetes/go/internal/command"
 	"github.com/Azure/mcp-kubernetes/go/internal/config"
 	"github.com/Azure/mcp-kubernetes/go/internal/security"
@@ -18,28 +20,20 @@ func NewExecutor() *HelmExecutor {
 }
 
 // Execute handles helm command execution
-func (e *HelmExecutor) Execute(params map[string]interface{}, cfg *config.ConfigData) (interface{}, error) {
-	helmCmd := params["command"].(string)
+func (e *HelmExecutor) Execute(params map[string]interface{}, cfg *config.ConfigData) (string, error) {
+	helmCmd, ok := params["command"].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid command parameter")
+	}
 
 	// Validate the command against security settings
 	validator := security.NewValidator(cfg.SecurityConfig)
 	err := validator.ValidateCommand(helmCmd, security.CommandTypeHelm)
 	if err != nil {
-		return map[string]interface{}{
-			"error": err.Error(),
-		}, nil
+		return "", err
 	}
 
 	// Execute the command
 	process := command.NewShellProcess("helm", cfg.Timeout)
-	output, err := process.Run(helmCmd)
-	if err != nil {
-		return map[string]interface{}{
-			"error": "Command execution error: " + err.Error(),
-		}, nil
-	}
-
-	return map[string]interface{}{
-		"text": output,
-	}, nil
+	return process.Run(helmCmd)
 }
