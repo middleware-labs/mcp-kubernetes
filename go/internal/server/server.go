@@ -84,7 +84,7 @@ func (s *Service) registerKubectlCommands() {
 	for _, cmd := range kubectl.GetReadOnlyKubectlCommands() {
 		kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 		commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
 	}
 
 	// Only register read-write and admin commands if not in read-only mode
@@ -93,14 +93,14 @@ func (s *Service) registerKubectlCommands() {
 		for _, cmd := range kubectl.GetReadWriteKubectlCommands() {
 			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
 		}
 
 		// Register admin kubectl commands
 		for _, cmd := range kubectl.GetAdminKubectlCommands() {
 			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
 			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
 		}
 	}
 }

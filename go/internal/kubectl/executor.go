@@ -85,8 +85,9 @@ func (e *KubectlExecutor) ExecuteSpecificCommand(cmd string, params map[string]i
 
 // CreateCommandExecutorFunc creates a CommandExecutor for a specific kubectl command
 func CreateCommandExecutorFunc(cmd string) tools.CommandExecutorFunc {
-	return func(params map[string]interface{}, cfg *config.ConfigData) (string, error) {
+	f := func(params map[string]interface{}, cfg *config.ConfigData) (string, error) {
 		executor := NewExecutor()
 		return executor.ExecuteSpecificCommand(cmd, params, cfg)
 	}
+	return tools.CommandExecutorFunc(f)
 }
