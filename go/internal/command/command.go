@@ -43,6 +43,7 @@ func (s *ShellProcess) Exec(commands string) (string, error) {
 	defer cancel()
 
 	// Create the command
+	// TODO： support windows， MacOS and other OS
 	cmd := exec.CommandContext(ctx, "sh", "-c", commands)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
