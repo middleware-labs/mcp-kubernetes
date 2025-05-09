@@ -37,9 +37,13 @@ func (s *Service) Initialize() error {
 		server.WithRecovery(),
 	)
 
-	// Register kubectl tool
-	kubectlTool := tools.RegisterKubectl()
-	s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(kubectl.NewExecutor(), s.cfg))
+	// Register individual kubectl commands based on permission level
+	s.registerKubectlCommands()
+
+	// Legacy registration for kubectl tool, if needed
+	// // Register generic kubectl tool for backward compatibility
+	// kubectlTool := tools.RegisterKubectl()
+	// s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(kubectl.NewExecutor(), s.cfg))
 
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
@@ -71,5 +75,32 @@ func (s *Service) Run() error {
 		return sse.Start(fmt.Sprintf(":%d", s.cfg.Port))
 	} else {
 		return fmt.Errorf("invalid transport type: %s (must be 'stdio' or 'sse')", s.cfg.Transport)
+	}
+}
+
+// registerKubectlCommands registers individual kubectl commands as separate tools
+func (s *Service) registerKubectlCommands() {
+	// Register read-only kubectl commands
+	for _, cmd := range tools.GetReadOnlyKubectlCommands() {
+		kubectlTool := tools.RegisterKubectlCommand(cmd)
+		commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+	}
+
+	// Only register read-write and admin commands if not in read-only mode
+	if !s.cfg.ReadOnly {
+		// Register read-write kubectl commands
+		for _, cmd := range tools.GetReadWriteKubectlCommands() {
+			kubectlTool := tools.RegisterKubectlCommand(cmd)
+			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+		}
+
+		// Register admin kubectl commands
+		for _, cmd := range tools.GetAdminKubectlCommands() {
+			kubectlTool := tools.RegisterKubectlCommand(cmd)
+			commandExecutor := kubectl.CreateCommandExecutor(cmd.Name)
+			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(tools.CommandExecutorFunc(commandExecutor), s.cfg))
+		}
 	}
 }
