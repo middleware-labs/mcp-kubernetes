@@ -68,10 +68,11 @@ func (s *Service) Run() error {
 		return server.ServeStdio(s.mcpServer)
 	} else if s.cfg.Transport == "sse" {
 		// Create SSE server using the MCP server
-		sse := server.NewSSEServer(s.mcpServer)
+		url := fmt.Sprintf("http://localhost:%d", s.cfg.Port)
+		sse := server.NewSSEServer(s.mcpServer, server.WithBaseURL(url))
 
 		log.Println("MCP Kubernetes version:", version.GetVersion())
-		log.Printf("SSE server listening on port: %d", s.cfg.Port)
+		log.Printf("SSE server listening on %s", url)
 		return sse.Start(fmt.Sprintf(":%d", s.cfg.Port))
 	} else {
 		return fmt.Errorf("invalid transport type: %s (must be 'stdio' or 'sse')", s.cfg.Transport)
