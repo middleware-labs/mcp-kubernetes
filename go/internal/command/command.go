@@ -42,9 +42,17 @@ func (s *ShellProcess) Exec(commands string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.Timeout)*time.Second)
 	defer cancel()
 
-	// Create the command
-	// TODO： support windows， MacOS and other OS
-	cmd := exec.CommandContext(ctx, "sh", "-c", commands)
+	var cmd *exec.Cmd
+
+	if strings.Contains(commands, " ") {
+		// If the command contains spaces, split it into command and arguments
+		parts := strings.Fields(commands)
+		cmd = exec.CommandContext(ctx, parts[0], parts[1:]...)
+	} else {
+		// Single command without arguments
+		cmd = exec.CommandContext(ctx, commands)
+	}
+
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

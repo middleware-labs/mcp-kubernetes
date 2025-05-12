@@ -1,10 +1,10 @@
 package config
 
 import (
-	"flag"
 	"strings"
 
 	"github.com/Azure/mcp-kubernetes/go/internal/security"
+	flag "github.com/spf13/pflag"
 )
 
 // ConfigData holds the global configuration
