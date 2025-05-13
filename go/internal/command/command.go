@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/google/shlex"
 )
 
 // ShellProcess wraps a shell command execution
@@ -29,8 +31,10 @@ func NewShellProcess(command string, timeout int) *ShellProcess {
 // Run executes the command with the given arguments
 func (s *ShellProcess) Run(args string) (string, error) {
 	commands := args
-	if !strings.HasPrefix(commands, s.Command) {
+	if args != "" && !strings.HasPrefix(commands, s.Command) {
 		commands = s.Command + " " + commands
+	} else if args == "" {
+		commands = s.Command
 	}
 
 	return s.Exec(commands)
@@ -44,13 +48,21 @@ func (s *ShellProcess) Exec(commands string) (string, error) {
 
 	var cmd *exec.Cmd
 
-	if strings.Contains(commands, " ") {
-		// If the command contains spaces, split it into command and arguments
-		parts := strings.Fields(commands)
+	// Parse the command string with proper handling of quotes
+	parts, err := shlex.Split(commands)
+	if err != nil {
+		return "", err
+	}
+
+	if len(parts) > 1 {
+		// Command with arguments
 		cmd = exec.CommandContext(ctx, parts[0], parts[1:]...)
-	} else {
+	} else if len(parts) == 1 {
 		// Single command without arguments
-		cmd = exec.CommandContext(ctx, commands)
+		cmd = exec.CommandContext(ctx, parts[0])
+	} else {
+		// Empty command
+		return "", nil
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -58,7 +70,7 @@ func (s *ShellProcess) Exec(commands string) (string, error) {
 	cmd.Stderr = &stderr
 
 	// Execute the command
-	err := cmd.Run()
+	err = cmd.Run()
 
 	// Check for timeout
 	if ctx.Err() == context.DeadlineExceeded {
