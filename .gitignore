@@ -1,14 +1,25 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Virtual environments
-.venv
-.kube
+# Test binary, built with `go test -c`
+*.test
 
-# vscode
+# Output of the go coverage tool
+*.out
+
+# Dependency directories
+vendor/
+
+# IDE specific files
+.idea/
 .vscode/
+*.swp
+*.swo
+
+# Binary output
+/mcp-kubernetes
+dist/
