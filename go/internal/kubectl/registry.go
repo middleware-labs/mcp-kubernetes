@@ -28,7 +28,7 @@ func RegisterKubectlCommand(cmd KubectlCommand) mcp.Tool {
 	
 	// Add example if available, with proper punctuation
 	if cmd.ArgsExample != "" {
-		description += "\n\nExample: `" + cmd.ArgsExample + "`"
+		description += "\nExample: `" + cmd.ArgsExample + "`"
 	}
 	
 	return mcp.NewTool("kubectl_"+cmd.Name,
