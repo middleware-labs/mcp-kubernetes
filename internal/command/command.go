@@ -56,9 +56,11 @@ func (s *ShellProcess) Exec(commands string) (string, error) {
 
 	if len(parts) > 1 {
 		// Command with arguments
+		// #nosec G204: Subprocess launched with a potential tainted input or cmd arguments
 		cmd = exec.CommandContext(ctx, parts[0], parts[1:]...)
 	} else if len(parts) == 1 {
 		// Single command without arguments
+		// #nosec G204: Subprocess launched with a potential tainted input or cmd arguments
 		cmd = exec.CommandContext(ctx, parts[0])
 	} else {
 		// Empty command
