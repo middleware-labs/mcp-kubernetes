@@ -1,10 +1,11 @@
-mcp_kubernetes_bin: "/path/to/mcp-kubernetes"
+mcp_kubernetes_bin: "" # "/path/to/mcp-kubernetes"
 model_config:
-  deployment: "your-deployment-name"
-  model: "your-model-name"
+  deployment: "" #"your-deployment-name"
+  model: "" #"your-model-name"
   api_version: "2024-06-01"
-  azure_endpoint: "https://your-endpoint.azure.com/"
+  azure_endpoint: "" #"https://your-endpoint.azure.com/"
 app_config:
+  # get the parameters from the command line
   additional_tools: "helm,cilium"
   allow_namespaces: ""
   readonly: false

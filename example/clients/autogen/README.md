@@ -27,20 +27,19 @@ Follow these steps to set up your environment:
    uv sync
    ```
 
-5. **Run the Application**
-   Execute the main script to start the application:
-   ```bash
-   python main.py
-   ```
-
-6. **Set Up Configuration**
+5. **Set Up Configuration**
    Copy the `.config.template.yaml` file to `.config.yaml` and update it with your environment-specific values:
    ```bash
    cp .config.template.yaml .config.yaml
    ```
    Edit `.config.yaml` to set the correct values for `mcp_kubernetes_bin` and `model_config`.
 
+6. **Run the Application**
+   Execute the main script to start the application:
+   ```bash
+   python main.py
+   ```
+
 This will launch the application and allow you to begin debugging Kubernetes issues.
 
-This process will set up a virtual environment and install all necessary dependencies for the project.
 
