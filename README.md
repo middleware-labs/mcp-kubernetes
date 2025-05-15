@@ -36,20 +36,7 @@ Get your kubeconfig file for your Kubernetes cluster and setup in the mcpServers
 }
 ```
 
-### UVX
-
-<details>
-
-<summary>Install uv</summary>
-
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/#installation-methods) if it's not installed yet and add it to your PATH, e.g. using curl:
-
-```bash
-# For Linux and MacOS
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-</details>
+### Local
 
 <details>
 
@@ -86,9 +73,10 @@ Config your MCP servers in [Claude Desktop](https://claude.ai/download), [Cursor
 {
   "mcpServers": {
     "kubernetes": {
-      "command": "uvx",
+      "command": "<path of binary 'mcp-kubernetes'>",
       "args": [
-        "mcp-kubernetes"
+        "--transport",
+        "stdio"
       ],
       "env": {
         "KUBECONFIG": "<your-kubeconfig-path>"
@@ -107,22 +95,13 @@ Environment variables:
 Command line arguments:
 
 ```sh
-usage: main.py [-h] [--additional-tools ADDITIONAL_TOOLS] [--transport {stdio,sse}] [--port PORT] [--readonly] [--allow-namespaces ALLOW_NAMESPACES]
-               [--timeout TIMEOUT]
-
-MCP Kubernetes Server
-
-options:
-  -h, --help            show this help message and exit
-  --additional-tools ADDITIONAL_TOOLS
-                        Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium
-  --transport {stdio,sse}
-                        Transport mechanism to use (stdio or sse)
-  --port PORT           Port to use for the server (only used with sse transport)
-  --readonly            Enable read-only mode (prevents write operations)
-  --allow-namespaces ALLOW_NAMESPACES
-                        Comma-separated list of namespaces to allow (empty means all allowed)
-  --timeout TIMEOUT     Timeout for command execution in seconds, default is 60s
+Usage of ./mcp-kubernetes:
+      --additional-tools string   Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium
+      --allow-namespaces string   Comma-separated list of namespaces to allow (empty means all allowed)
+      --port int                  Port to use for the server (only used with sse transport) (default 8000)
+      --readonly                  Enable read-only mode (prevents write operations)
+      --timeout int               Timeout for command execution in seconds, default is 60s (default 60)
+      --transport string          Transport mechanism to use (stdio or sse) (default "stdio")
 ```
 
 ## Usage
@@ -211,16 +190,10 @@ The mcp-kubernetes server provides the following tools for interacting with Kube
 
 ## Development
 
-How to run the project locally:
-
-```sh
-uv run -m src.mcp_kubernetes.main
-```
-
 How to inspect MCP server requests and responses:
 
 ```sh
-npx @modelcontextprotocol/inspector uv run -m src.mcp_kubernetes.main
+npx @modelcontextprotocol/inspector <path of binary 'mcp-kubernetes'>
 ```
 
 ## Contributing
