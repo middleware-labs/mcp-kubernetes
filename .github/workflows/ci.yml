@@ -67,34 +67,34 @@ jobs:
           path: coverage.txt
           retention-days: 14
 
-  # build:
-  #   name: Build
-  #   runs-on: ubuntu-latest
-  #   needs: [lint, test]
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
-  #       with:
-  #         fetch-depth: 0
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
-  #     - name: Set up Go
-  #       uses: actions/setup-go@v5
-  #       with:
-  #         go-version: '1.24'
-  #         check-latest: true
-  #         cache: true
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          check-latest: true
+          cache: true
       
-  #     - name: Build binary
-  #       run: |
-  #         go build -v -ldflags="-X github.com/Azure/mcp-kubernetes/internal/version.GitCommit=$(git rev-parse HEAD) -X github.com/Azure/mcp-kubernetes/internal/version.BuildMetadata=$(date +%Y%m%d)" -o mcp-kubernetes ./cmd/mcp-kubernetes
+      - name: Build binary
+        run: |
+          go build -v -ldflags="-X github.com/Azure/mcp-kubernetes/internal/version.GitCommit=$(git rev-parse HEAD) -X github.com/Azure/mcp-kubernetes/internal/version.BuildMetadata=$(date +%Y%m%d)" -o mcp-kubernetes ./cmd/mcp-kubernetes
       
-  #     - name: Build Docker image
-  #       run: docker build -t mcp-kubernetes:test .
+      - name: Build Docker image
+        run: docker build -t mcp-kubernetes:test .
       
-  #     - name: Check Docker image
-  #       run: |
-  #         docker images mcp-kubernetes:test
-  #         docker run --rm mcp-kubernetes:test --version || true
+      - name: Check Docker image
+        run: |
+          docker images mcp-kubernetes:test
+          docker run --rm mcp-kubernetes:test --version || true
 
   security:
     name: Security Scan
