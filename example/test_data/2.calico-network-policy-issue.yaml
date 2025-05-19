@@ -1,102 +1,103 @@
 # This file is used to test the network policy validation.
 # It contains a StatefulSet and a Deployment with a wrong network policy configuration.
 
-apiVersion: v1  
-kind: Namespace  
-metadata:  
-  name: calico-test-server  
----  
-apiVersion: v1  
-kind: Namespace  
-metadata:  
-  name: calico-test-worker  
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-test-server
 ---
-apiVersion: apps/v1  
-kind: Deployment  
-metadata:  
-  name: worker  
-  namespace: calico-test-worker  
-spec:  
-  replicas: 2  
-  selector:  
-    matchLabels:  
-      app: worker  
-  template:  
-    metadata:  
-      labels:  
-        app: worker  
-    spec:  
-      containers:  
-      - name: worker  
-        image: nicolaka/netshoot
-        command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          while true; do
-            curl http://my-service.calico-test-server.svc.cluster.local
-            sleep 60
-          done
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calico-test-worker
 ---
-apiVersion: apps/v1  
-kind: StatefulSet  
-metadata:  
-  name: my-service  
-  namespace: calico-test-server  
-spec:  
-  selector:  
-    matchLabels:  
-      app: my-service  
-  serviceName: "my-service"  
-  replicas: 2  
-  template:  
-    metadata:  
-      labels:  
-        app: my-service  
-    spec:  
-      containers:  
-      - name: my-service  
-        image: nginx  
-        ports:  
-        - containerPort: 80  
----  
-apiVersion: v1  
-kind: Service  
-metadata:  
-  name: my-service  
-  namespace: calico-test-server  
-spec:  
-  selector:  
-    app: my-service  
-  ports:  
-  - protocol: TCP  
-    port: 80  
-    targetPort: 80  
-  clusterIP: None  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: calico-test-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: nicolaka/netshoot
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              while true; do
+                curl http://my-service.calico-test-server.svc.cluster.local
+                sleep 60
+              done
 ---
-apiVersion: networking.k8s.io/v1  
-kind: NetworkPolicy  
-metadata:  
-  name: default-deny-all  
-  namespace: calico-test-worker 
-spec:  
-  podSelector: {}  
-  policyTypes:  
-  - Egress  
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-service
+  namespace: calico-test-server
+spec:
+  selector:
+    matchLabels:
+      app: my-service
+  serviceName: "my-service"
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: my-service
+    spec:
+      containers:
+        - name: my-service
+          image: nginx
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  namespace: calico-test-server
+spec:
+  selector:
+    app: my-service
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  clusterIP: None
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: calico-test-worker
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
   egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          app: my-service  
-      namespaceSelector:  
-        matchLabels:  
-          kubernetes.io/metadata.name: calico-test-server
-    # uncomment the following lines to fix the policy
-    # - namespaceSelector:
-    #     matchLabels:
-    #       kubernetes.io/metadata.name: kube-system
-    #   podSelector:
-    #     matchLabels:
-    #       k8s-app: kube-dns
+    - to:
+        - podSelector:
+            matchLabels:
+              app: my-service
+          namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: calico-test-server
+      # uncomment the following lines to fix the policy
+      # - namespaceSelector:
+      #     matchLabels:
+      #       kubernetes.io/metadata.name: kube-system
+      #   podSelector:
+      #     matchLabels:
+      #       k8s-app: kube-dns
 ---
+

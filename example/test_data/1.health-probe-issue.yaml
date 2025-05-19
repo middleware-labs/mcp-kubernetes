@@ -2,10 +2,10 @@
 # It contains a Deployment with a wrong health probe configuration.
 # The HTTP GET request is configured to use a non-existent port (30).
 
-apiVersion: v1  
-kind: Namespace  
-metadata:  
-  name: web-test  
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web-test
 
 ---
 apiVersion: apps/v1
@@ -34,21 +34,21 @@ spec:
         app: web
     spec:
       containers:
-      - image: httpd
-        imagePullPolicy: Always
-        name: web
-        ports:
-        - containerPort: 80
-          protocol: TCP
-        readinessProbe:
-          failureThreshold: 3
-          httpGet:
-            path: /
-            port: 30 # This is the wrong port
-            scheme: HTTP
-          initialDelaySeconds: 3
-          periodSeconds: 3
-          successThreshold: 1
-          timeoutSeconds: 1
+        - image: httpd
+          imagePullPolicy: Always
+          name: web
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 30 # This is the wrong port
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            successThreshold: 1
+            timeoutSeconds: 1
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
