@@ -64,9 +64,9 @@ func (v *Validator) validateAdditionalTools() bool {
 
 // validateKubeconfig checks if kubectl is properly configured and can connect to the cluster
 func (v *Validator) validateKubeconfig() bool {
-	cmd := exec.Command("kubectl", "version", "--request-timeout=1s")
+	cmd := exec.Command("kubectl", "version", "--request-timeout=15s")
 	if err := cmd.Run(); err != nil {
-		v.errors = append(v.errors, "kubectl is not properly configured or cannot connect to the cluster")
+		v.errors = append(v.errors, "kubectl is not properly configured or cannot connect to the cluster: "+err.Error())
 		return false
 	}
 	return true
