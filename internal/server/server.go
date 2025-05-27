@@ -29,9 +29,6 @@ func NewService(cfg *config.ConfigData) *Service {
 // Initialize initializes the service
 func (s *Service) Initialize() error {
 	// Initialize configuration
-	if s.cfg.Host == "" {
-		s.cfg.Host = "127.0.0.1"
-	}
 
 	// Create MCP server
 	s.mcpServer = server.NewMCPServer(
