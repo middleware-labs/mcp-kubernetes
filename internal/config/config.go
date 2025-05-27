@@ -18,6 +18,7 @@ type ConfigData struct {
 
 	// Command-line specific options
 	Transport       string
+	Host            string
 	Port            int
 	ReadOnly        bool
 	AllowNamespaces string
@@ -39,8 +40,9 @@ func NewConfig() *ConfigData {
 // ParseFlags parses command line arguments and updates the configuration
 func (cfg *ConfigData) ParseFlags() {
 	// Server configuration
-	flag.StringVar(&cfg.Transport, "transport", "stdio", "Transport mechanism to use (stdio or sse)")
-	flag.IntVar(&cfg.Port, "port", 8000, "Port to use for the server (only used with sse transport)")
+	flag.StringVar(&cfg.Transport, "transport", "stdio", "Transport mechanism to use (stdio, sse or streamable-http)")
+	flag.StringVar(&cfg.Host, "host", "127.0.0.1", "Host to listen for the server (only used with transport sse or streamable-http)")
+	flag.IntVar(&cfg.Port, "port", 8000, "Port to listen for the server (only used with transport sse or streamable-http)")
 	flag.IntVar(&cfg.Timeout, "timeout", 60, "Timeout for command execution in seconds, default is 60s")
 
 	// Tools configuration

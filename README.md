@@ -98,10 +98,11 @@ Command line arguments:
 Usage of ./mcp-kubernetes:
       --additional-tools string   Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium
       --allow-namespaces string   Comma-separated list of namespaces to allow (empty means all allowed)
-      --port int                  Port to use for the server (only used with sse transport) (default 8000)
+      --host string               Host to listen for the server (only used with transport sse or streamable-http) (default "127.0.0.1")
+      --port int                  Port to listen for the server (only used with transport sse or streamable-http) (default 8000)
       --readonly                  Enable read-only mode (prevents write operations)
       --timeout int               Timeout for command execution in seconds, default is 60s (default 60)
-      --transport string          Transport mechanism to use (stdio or sse) (default "stdio")
+      --transport string          Transport mechanism to use (stdio, sse or streamable-http) (default "stdio")
 ```
 
 ## Usage
