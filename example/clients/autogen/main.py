@@ -83,7 +83,7 @@ async def get_tools(
     mcp_kubernetes_bin: str,
     additional_tools: str,
     allow_namespaces: str,
-    readonly: bool,
+    access_level: str,
 ) -> list:
     """Initialize and return tools for the MCP Kubernetes server."""
     server_params = StdioServerParams(
@@ -91,7 +91,7 @@ async def get_tools(
         args=[
             f"--additional-tools={additional_tools}",
             f"--allow-namespaces={allow_namespaces}",
-            "--readonly" if readonly else "",
+            f"--access-level={access_level}",
         ],
     )
 
@@ -133,12 +133,12 @@ async def main() -> None:
 
     additional_tools = app_config.get("additional_tools", "")
     allow_namespaces = app_config.get("allow_namespaces", "")
-    readonly = app_config.get("readonly", False)
+    access_level = app_config.get("access_level", "readonly")
 
     az_model_client = get_az_model_client(model_config)
 
     tools = await get_tools(
-        mcp_kubernetes_bin, additional_tools, allow_namespaces, readonly
+        mcp_kubernetes_bin, additional_tools, allow_namespaces, access_level
     )
 
     agent = AssistantAgent(
