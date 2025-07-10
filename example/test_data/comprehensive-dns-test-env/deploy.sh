@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 echo "Deploying DNS test environment with intentional DNS issues..."
 echo "================================================================"
