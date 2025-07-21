@@ -1,7 +1,7 @@
 package tools
 
 import (
-	"github.com/Azure/mcp-kubernetes/internal/config"
+	"github.com/Azure/mcp-kubernetes/pkg/config"
 )
 
 // CommandExecutor defines the interface for executing commands

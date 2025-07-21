@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/Azure/mcp-kubernetes/internal/config"
-	"github.com/Azure/mcp-kubernetes/internal/server"
+	"github.com/Azure/mcp-kubernetes/pkg/config"
+	"github.com/Azure/mcp-kubernetes/pkg/server"
 )
 
 func main() {

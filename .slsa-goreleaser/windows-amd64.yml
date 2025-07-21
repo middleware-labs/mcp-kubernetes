@@ -22,7 +22,7 @@ main: ./cmd/mcp-kubernetes
 # {{ .Arch }} will be replaced by goarch field in the config file.
 binary: mcp-kubernetes-{{ .Os }}-{{ .Arch }}.exe
 ldflags:
-  - "-X github.com/Azure/mcp-kubernetes/internal/version.GitVersion={{ .Env.VERSION }}"
-  - "-X github.com/Azure/mcp-kubernetes/internal/version.GitCommit={{ .Env.COMMIT }}"
-  - "-X github.com/Azure/mcp-kubernetes/internal/version.BuildMetadata={{ .Env.COMMIT_DATE }}"
-  - "-X github.com/Azure/mcp-kubernetes/internal/version.GitTreeState={{ .Env.TREE_STATE }}"
+  - "-X github.com/Azure/mcp-kubernetes/pkg/version.GitVersion={{ .Env.VERSION }}"
+  - "-X github.com/Azure/mcp-kubernetes/pkg/version.GitCommit={{ .Env.COMMIT }}"
+  - "-X github.com/Azure/mcp-kubernetes/pkg/version.BuildMetadata={{ .Env.COMMIT_DATE }}"
+  - "-X github.com/Azure/mcp-kubernetes/pkg/version.GitTreeState={{ .Env.TREE_STATE }}"

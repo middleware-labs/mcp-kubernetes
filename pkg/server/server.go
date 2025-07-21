@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/Azure/mcp-kubernetes/internal/cilium"
-	"github.com/Azure/mcp-kubernetes/internal/config"
-	"github.com/Azure/mcp-kubernetes/internal/helm"
-	"github.com/Azure/mcp-kubernetes/internal/kubectl"
-	"github.com/Azure/mcp-kubernetes/internal/tools"
-	"github.com/Azure/mcp-kubernetes/internal/version"
+	"github.com/Azure/mcp-kubernetes/pkg/cilium"
+	"github.com/Azure/mcp-kubernetes/pkg/config"
+	"github.com/Azure/mcp-kubernetes/pkg/helm"
+	"github.com/Azure/mcp-kubernetes/pkg/kubectl"
+	"github.com/Azure/mcp-kubernetes/pkg/tools"
+	"github.com/Azure/mcp-kubernetes/pkg/version"
 	"github.com/mark3labs/mcp-go/server"
 )
 
