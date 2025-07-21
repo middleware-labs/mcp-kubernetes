@@ -3,7 +3,7 @@ package config
 import (
 	"strings"
 
-	"github.com/Azure/mcp-kubernetes/internal/security"
+	"github.com/Azure/mcp-kubernetes/pkg/security"
 	flag "github.com/spf13/pflag"
 )
 

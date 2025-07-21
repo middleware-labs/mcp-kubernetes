@@ -3,10 +3,10 @@ package helm
 import (
 	"fmt"
 
-	"github.com/Azure/mcp-kubernetes/internal/command"
-	"github.com/Azure/mcp-kubernetes/internal/config"
-	"github.com/Azure/mcp-kubernetes/internal/security"
-	"github.com/Azure/mcp-kubernetes/internal/tools"
+	"github.com/Azure/mcp-kubernetes/pkg/command"
+	"github.com/Azure/mcp-kubernetes/pkg/config"
+	"github.com/Azure/mcp-kubernetes/pkg/security"
+	"github.com/Azure/mcp-kubernetes/pkg/tools"
 )
 
 // HelmExecutor implements the CommandExecutor interface for helm commands

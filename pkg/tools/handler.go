@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Azure/mcp-kubernetes/internal/config"
+	"github.com/Azure/mcp-kubernetes/pkg/config"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
