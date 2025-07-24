@@ -23,7 +23,7 @@ func TestAccessLevelValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := NewConfig()
 			cfg.AccessLevel = tt.accessLevel
-			
+
 			// Skip flag parsing, just test the validation logic
 			var err error
 			switch cfg.AccessLevel {

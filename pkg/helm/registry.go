@@ -6,11 +6,11 @@ import (
 
 // RegisterHelm registers the helm tool
 func RegisterHelm() mcp.Tool {
-	return mcp.NewTool("Run-helm-command",
-		mcp.WithDescription("Run helm command and get result, The command should start with helm"),
+	return mcp.NewTool("helm",
+		mcp.WithDescription("Run Helm package manager commands for Kubernetes"),
 		mcp.WithString("command",
 			mcp.Required(),
-			mcp.Description("The helm command to execute"),
+			mcp.Description("The helm command to execute (e.g., 'helm list', 'helm install myapp ./chart')"),
 		),
 	)
 }

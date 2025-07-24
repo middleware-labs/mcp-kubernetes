@@ -8,7 +8,6 @@ import (
 	"github.com/Azure/mcp-kubernetes/pkg/config"
 	"github.com/Azure/mcp-kubernetes/pkg/helm"
 	"github.com/Azure/mcp-kubernetes/pkg/kubectl"
-	"github.com/Azure/mcp-kubernetes/pkg/security"
 	"github.com/Azure/mcp-kubernetes/pkg/tools"
 	"github.com/Azure/mcp-kubernetes/pkg/version"
 	"github.com/mark3labs/mcp-go/server"
@@ -81,30 +80,18 @@ func (s *Service) Run() error {
 	}
 }
 
-// registerKubectlCommands registers individual kubectl commands as separate tools
+// registerKubectlCommands registers kubectl tools based on access level
 func (s *Service) registerKubectlCommands() {
-	// Register read-only kubectl commands (always available)
-	for _, cmd := range kubectl.GetReadOnlyKubectlCommands() {
-		kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-		commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-		s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
-	}
+	// Get kubectl tools filtered by access level
+	kubectlTools := kubectl.RegisterKubectlTools(s.cfg.AccessLevel)
 
-	// Register read-write commands if access level allows
-	if s.cfg.SecurityConfig.AccessLevel == security.AccessLevelReadWrite || s.cfg.SecurityConfig.AccessLevel == security.AccessLevelAdmin {
-		for _, cmd := range kubectl.GetReadWriteKubectlCommands() {
-			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
-		}
-	}
+	// Create a kubectl executor
+	kubectlExecutor := kubectl.NewKubectlToolExecutor()
 
-	// Register admin commands only if access level is admin
-	if s.cfg.SecurityConfig.AccessLevel == security.AccessLevelAdmin {
-		for _, cmd := range kubectl.GetAdminKubectlCommands() {
-			kubectlTool := kubectl.RegisterKubectlCommand(cmd)
-			commandExecutor := kubectl.CreateCommandExecutorFunc(cmd.Name)
-			s.mcpServer.AddTool(kubectlTool, tools.CreateToolHandler(commandExecutor, s.cfg))
-		}
+	// Register each kubectl tool
+	for _, tool := range kubectlTools {
+		// Create a handler that injects the tool name into params
+		handler := tools.CreateToolHandlerWithName(kubectlExecutor, s.cfg, tool.Name)
+		s.mcpServer.AddTool(tool, handler)
 	}
 }

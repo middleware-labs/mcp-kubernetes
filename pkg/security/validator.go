@@ -90,7 +90,7 @@ func (v *Validator) getReadWriteOperationsList(commandType string) []string {
 		// This can be expanded when helm write operations are defined
 		return []string{}
 	case CommandTypeCilium:
-		// For now, assume cilium write operations are same as read operations  
+		// For now, assume cilium write operations are same as read operations
 		// This can be expanded when cilium write operations are defined
 		return []string{}
 	default:
@@ -154,9 +154,9 @@ func (v *Validator) validateAccessLevel(command, commandType string) error {
 		}
 	case AccessLevelAdmin:
 		// Admin level allows all operations (read, write, and admin)
-		if !v.isOperationInList(operation, readOperations) && 
-		   !v.isOperationInList(operation, readWriteOperations) && 
-		   !v.isOperationInList(operation, adminOperations) {
+		if !v.isOperationInList(operation, readOperations) &&
+			!v.isOperationInList(operation, readWriteOperations) &&
+			!v.isOperationInList(operation, adminOperations) {
 			return &ValidationError{Message: "Error: Unknown operation"}
 		}
 	default:

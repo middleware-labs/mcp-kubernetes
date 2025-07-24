@@ -28,7 +28,8 @@ Get your kubeconfig file for your Kubernetes cluster and setup in the mcpServers
         "run",
         "-i",
         "--rm",
-        "--mount", "type=bind,src=/home/username/.kube/config,dst=/home/mcp/.kube/config",
+        "--mount",
+        "type=bind,src=/home/username/.kube/config,dst=/home/mcp/.kube/config",
         "ghcr.io/azure/mcp-kubernetes"
       ]
     }
@@ -74,10 +75,7 @@ Config your MCP servers in [Claude Desktop](https://claude.ai/download), [Cursor
   "mcpServers": {
     "kubernetes": {
       "command": "<path of binary 'mcp-kubernetes'>",
-      "args": [
-        "--transport",
-        "stdio"
-      ],
+      "args": ["--transport", "stdio"],
       "env": {
         "KUBECONFIG": "<your-kubeconfig-path>"
       }
@@ -107,20 +105,44 @@ Usage of ./mcp-kubernetes:
 
 ### Access Levels
 
-The `--access-level` flag controls what operations are allowed:
+The `--access-level` flag controls what operations are allowed and which tools are available:
 
 - **`readonly`** (default): Only read operations are allowed (get, describe, logs, etc.)
+  - Available tools: 4 kubectl tools for viewing resources
 - **`readwrite`**: Read and write operations are allowed (create, delete, apply, etc.)
+  - Available tools: 6 kubectl tools for managing resources
 - **`admin`**: All operations are allowed, including admin operations (cordon, drain, taint, etc.)
+  - Available tools: All 7 kubectl tools including node management
+
+Tools are filtered at registration time based on the access level, so AI assistants only see tools they can actually use.
 
 Example configurations:
 
 ```json
+// Read-only access (default)
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "mcp-kubernetes"
+    }
+  }
+}
+
+// Read-write access
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "mcp-kubernetes",
+      "args": ["--access-level", "readwrite"]
+    }
+  }
+}
+
 // Admin access
 {
   "mcpServers": {
     "kubernetes": {
-      "command": "mcp-kubernetes", 
+      "command": "mcp-kubernetes",
       "args": ["--access-level", "admin"]
     }
   }
@@ -129,87 +151,252 @@ Example configurations:
 
 ## Usage
 
-Ask any questions about Kubernetes cluster in your AI client, e.g.
+Ask any questions about Kubernetes cluster in your AI client. The MCP tools make it easier for AI assistants to understand and use kubectl operations.
+
+### Example Queries
 
 ```txt
 What is the status of my Kubernetes cluster?
 
 What is wrong with my nginx pod?
+
+Show me all deployments in the production namespace
+
+Scale my web deployment to 5 replicas
+
+Check if I have permission to create pods
 ```
 
 ## Available Tools
 
-The mcp-kubernetes server provides the following tools for interacting with Kubernetes clusters:
+The mcp-kubernetes server provides consolidated kubectl tools that group related operations together. Tools are automatically filtered based on your access level.
+
+### Kubectl Tools
 
 <details>
+<summary><b>kubectl_resources</b> - Manage Kubernetes resources</summary>
 
-<summary> Read-Only Tools </summary>
+**Available in**: readonly, readwrite, admin
 
-#### Read-Only Tools
+Handles CRUD operations on Kubernetes resources and node management. In readonly mode, only supports `get` and `describe` operations. Node operations (cordon, uncordon, drain, taint) are available in admin mode only.
 
-- `kubectl_get`: Get Kubernetes resources
-- `kubectl_describe`: Show detailed information about Kubernetes resources
-- `kubectl_explain`: Get documentation for Kubernetes resources
-- `kubectl_logs`: Print logs from containers in pods
-- `kubectl_api_resources`: List available API resources
-- `kubectl_api_versions`: List available API versions
-- `kubectl_diff`: Show differences between current state and applied changes
-- `kubectl_cluster_info`: Display cluster information
-- `kubectl_top`: Display resource usage (CPU/Memory)
-- `kubectl_events`: List events in the cluster
-- `kubectl_auth`: Inspect authorization settings
+**Parameters:**
+
+- `operation`: The operation to perform (get, describe, create, delete, apply, patch, replace, cordon, uncordon, drain, taint)
+- `resource`: The resource type (e.g., pods, deployments, services, nodes) or empty for file-based operations
+- `args`: Additional arguments like resource names, namespaces, and flags
+
+**Examples:**
+
+```bash
+# Get all pods
+operation: "get"
+resource: "pods"
+args: "--all-namespaces"
+
+# Apply a configuration
+operation: "apply"
+resource: ""
+args: "-f deployment.yaml"
+
+# Drain a node (admin only)
+operation: "drain"
+resource: "node"
+args: "worker-1 --ignore-daemonsets"
+
+# Add a taint (admin only)
+operation: "taint"
+resource: "nodes"
+args: "worker-1 key=value:NoSchedule"
+```
 
 </details>
 
 <details>
+<summary><b>kubectl_workloads</b> - Manage workload deployments</summary>
 
-<summary> Read-Write Tools </summary>
+**Available in**: readwrite, admin
 
-#### Read-Write Tools
+Manages deployment lifecycle operations including scaling and rollouts.
 
-- `kubectl_create`: Create Kubernetes resources
-- `kubectl_delete`: Delete Kubernetes resources
-- `kubectl_apply`: Apply configurations to resources
-- `kubectl_expose`: Expose a resource as a new Kubernetes service
-- `kubectl_run`: Run a particular image in the cluster
-- `kubectl_set`: Set specific features on objects
-- `kubectl_rollout`: Manage rollouts of deployments
-- `kubectl_scale`: Scale deployments, statefulsets, and replicasets
-- `kubectl_autoscale`: Auto-scale deployments, statefulsets, and replicasets
-- `kubectl_label`: Update labels on resources
-- `kubectl_annotate`: Update annotations on resources
-- `kubectl_patch`: Update fields of resources using strategic merge patch
-- `kubectl_replace`: Replace existing resources
-- `kubectl_cp`: Copy files between containers and local filesystems
-- `kubectl_exec`: Execute commands in containers
+**Parameters:**
 
-</details>
+- `operation`: The operation to perform (run, expose, scale, autoscale, rollout)
+- `resource`: For rollout operations, the subcommand (status, history, undo, restart, pause, resume)
+- `args`: Additional arguments
 
-<details>
+**Examples:**
 
-<summary> Admin Tools </summary>
+```bash
+# Scale a deployment
+operation: "scale"
+resource: "deployment"
+args: "nginx --replicas=3"
 
-#### Admin Tools
-
-- `kubectl_cordon`: Mark node as unschedulable
-- `kubectl_uncordon`: Mark node as schedulable
-- `kubectl_drain`: Drain node for maintenance
-- `kubectl_taint`: Update taints on nodes
-- `kubectl_certificate`: Modify certificate resources
+# Check rollout status
+operation: "rollout"
+resource: "status"
+args: "deployment/nginx"
+```
 
 </details>
 
 <details>
-<summary> Helm Tools </summary>
+<summary><b>kubectl_metadata</b> - Manage resource metadata</summary>
 
-#### Helm Tools
+**Available in**: readwrite, admin
 
-- **Run-helm-command**: Run helm commands and get results
+Updates labels, annotations, and other metadata on resources.
+
+**Parameters:**
+
+- `operation`: The operation to perform (label, annotate, set)
+- `resource`: The resource type
+- `args`: Resource name and metadata changes
+
+**Examples:**
+
+```bash
+# Add a label
+operation: "label"
+resource: "pods"
+args: "nginx-pod app=web"
+
+# Set image
+operation: "set"
+resource: "image"
+args: "deployment/nginx nginx=nginx:latest"
+```
 
 </details>
 
-> Note: Read-write and admin tools are only available when the server is not run in read-only mode.
+<details>
+<summary><b>kubectl_diagnostics</b> - Debug and monitor resources</summary>
 
+**Available in**: readonly, readwrite, admin
+
+Provides debugging and monitoring capabilities.
+
+**Parameters:**
+
+- `operation`: The operation to perform (logs, events, top, exec, cp)
+- `resource`: The resource type or specific resource
+- `args`: Additional arguments
+
+**Examples:**
+
+```bash
+# View logs
+operation: "logs"
+resource: ""
+args: "nginx-pod -f"
+
+# Execute command in pod
+operation: "exec"
+resource: ""
+args: "nginx-pod -- ls /app"
+```
+
+</details>
+
+<details>
+<summary><b>kubectl_cluster</b> - View cluster information</summary>
+
+**Available in**: readonly, readwrite, admin
+
+Provides cluster-level information and API discovery.
+
+**Parameters:**
+
+- `operation`: The operation to perform (cluster-info, api-resources, api-versions, explain)
+- `resource`: For explain operation, the resource to document
+- `args`: Additional flags
+
+**Examples:**
+
+```bash
+# Get cluster info
+operation: "cluster-info"
+resource: ""
+args: ""
+
+# Explain pod spec
+operation: "explain"
+resource: "pod.spec"
+args: "--recursive"
+```
+
+</details>
+
+
+<details>
+<summary><b>kubectl_config</b> - Configuration and security</summary>
+
+**Available in**: readonly, readwrite, admin
+
+Handles configuration validation and security operations. In readonly mode, only supports `diff` and `auth can-i`.
+
+**Parameters:**
+
+- `operation`: The operation to perform (diff, auth, certificate)
+- `resource`: Subcommand for auth/certificate operations
+- `args`: Operation-specific arguments
+
+**Examples:**
+
+```bash
+# Check permissions
+operation: "auth"
+resource: "can-i"
+args: "create pods"
+
+# Approve certificate
+operation: "certificate"
+resource: "approve"
+args: "csr-name"
+```
+
+</details>
+
+### Additional Tools
+
+<details>
+<summary><b>helm</b> - Helm package manager</summary>
+
+**Available when**: `--additional-tools=helm` is specified
+
+Run Helm commands for managing Kubernetes applications.
+
+**Parameters:**
+
+- `command`: The helm command to execute
+
+**Example:**
+
+```bash
+command: "list --all-namespaces"
+```
+
+</details>
+
+<details>
+<summary><b>cilium</b> - Cilium CNI commands</summary>
+
+**Available when**: `--additional-tools=cilium` is specified
+
+Run Cilium commands for network policies and observability.
+
+**Parameters:**
+
+- `command`: The cilium command to execute
+
+**Example:**
+
+```bash
+command: "status --brief"
+```
+
+</details>
 
 ## Development
 
@@ -221,22 +408,12 @@ npx @modelcontextprotocol/inspector <path of binary 'mcp-kubernetes'>
 
 ## Contributing
 
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+This project welcomes contributions and suggestions. Most contributions require you to agree to a Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
 
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
+When you submit a pull request, a CLA bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
 
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
-trademarks or logos is subject to and must follow
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft trademarks or logos is subject to and must follow [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general). Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship. Any use of third-party trademarks or logos are subject to those third-party's policies.

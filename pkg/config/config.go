@@ -98,8 +98,3 @@ func IsToolSupported(tool string) bool {
 	}
 	return false
 }
-
-// AvailableTools returns the list of available tools
-func AvailableTools() []string {
-	return availableTools
-}

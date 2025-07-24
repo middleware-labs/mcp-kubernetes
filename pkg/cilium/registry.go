@@ -6,11 +6,11 @@ import (
 
 // RegisterCilium registers the cilium tool
 func RegisterCilium() mcp.Tool {
-	return mcp.NewTool("Run-cilium-command",
-		mcp.WithDescription("Run cilium command and get result, The command should start with cilium"),
+	return mcp.NewTool("cilium",
+		mcp.WithDescription("Run Cilium CNI commands for network policies and observability"),
 		mcp.WithString("command",
 			mcp.Required(),
-			mcp.Description("The cilium command to execute"),
+			mcp.Description("The cilium command to execute (e.g., 'cilium status', 'cilium endpoint list')"),
 		),
 	)
 }
