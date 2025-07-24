@@ -83,8 +83,6 @@ func (e *KubectlToolExecutor) validateCombination(toolName, operation, resource 
 		return e.validateDiagnosticsOperation(operation)
 	case "kubectl_cluster":
 		return e.validateClusterOperation(operation)
-	case "kubectl_nodes":
-		return e.validateNodesOperation(operation)
 	case "kubectl_config":
 		return e.validateConfigOperation(operation, resource)
 	default:
@@ -110,7 +108,16 @@ func (e *KubectlToolExecutor) validateResourcesOperation(operation string) error
 		}
 	}
 
+	// Node operations (admin level)
+	nodeOps := []string{"cordon", "uncordon", "drain", "taint"}
+	for _, validOp := range nodeOps {
+		if operation == validOp {
+			return nil
+		}
+	}
+
 	allOps := append(readOnlyOps, writeOps...)
+	allOps = append(allOps, nodeOps...)
 	return fmt.Errorf("invalid operation '%s' for resources tool. Valid operations: %s",
 		operation, strings.Join(allOps, ", "))
 }
@@ -171,18 +178,6 @@ func (e *KubectlToolExecutor) validateClusterOperation(operation string) error {
 		}
 	}
 	return fmt.Errorf("invalid operation '%s' for cluster tool. Valid operations: %s",
-		operation, strings.Join(validOps, ", "))
-}
-
-// validateNodesOperation validates operations for the nodes tool
-func (e *KubectlToolExecutor) validateNodesOperation(operation string) error {
-	validOps := []string{"cordon", "uncordon", "drain", "taint"}
-	for _, validOp := range validOps {
-		if operation == validOp {
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid operation '%s' for nodes tool. Valid operations: %s",
 		operation, strings.Join(validOps, ", "))
 }
 

@@ -178,12 +178,12 @@ The mcp-kubernetes server provides consolidated kubectl tools that group related
 
 **Available in**: readonly, readwrite, admin
 
-Handles CRUD operations on Kubernetes resources. In readonly mode, only supports `get` and `describe` operations.
+Handles CRUD operations on Kubernetes resources and node management. In readonly mode, only supports `get` and `describe` operations. Node operations (cordon, uncordon, drain, taint) are available in admin mode only.
 
 **Parameters:**
 
-- `operation`: The operation to perform (get, describe, create, delete, apply, patch, replace)
-- `resource`: The resource type (e.g., pods, deployments, services) or empty for file-based operations
+- `operation`: The operation to perform (get, describe, create, delete, apply, patch, replace, cordon, uncordon, drain, taint)
+- `resource`: The resource type (e.g., pods, deployments, services, nodes) or empty for file-based operations
 - `args`: Additional arguments like resource names, namespaces, and flags
 
 **Examples:**
@@ -198,6 +198,16 @@ args: "--all-namespaces"
 operation: "apply"
 resource: ""
 args: "-f deployment.yaml"
+
+# Drain a node (admin only)
+operation: "drain"
+resource: "node"
+args: "worker-1 --ignore-daemonsets"
+
+# Add a taint (admin only)
+operation: "taint"
+resource: "nodes"
+args: "worker-1 key=value:NoSchedule"
 ```
 
 </details>
@@ -318,34 +328,6 @@ args: "--recursive"
 
 </details>
 
-<details>
-<summary><b>kubectl_nodes</b> - Manage cluster nodes</summary>
-
-**Available in**: admin only
-
-Manages node-level operations for cluster maintenance.
-
-**Parameters:**
-
-- `operation`: The operation to perform (cordon, uncordon, drain, taint)
-- `resource`: Usually 'node' or 'nodes'
-- `args`: Node names and operation-specific flags
-
-**Examples:**
-
-```bash
-# Drain a node
-operation: "drain"
-resource: "node"
-args: "worker-1 --ignore-daemonsets"
-
-# Add a taint
-operation: "taint"
-resource: "nodes"
-args: "worker-1 key=value:NoSchedule"
-```
-
-</details>
 
 <details>
 <summary><b>kubectl_config</b> - Configuration and security</summary>

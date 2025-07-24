@@ -82,11 +82,18 @@ func TestKubectlToolExecutor_ValidateCombination(t *testing.T) {
 			resource:  "",
 			wantErr:   false,
 		},
-		// Nodes tool tests
+		// Node operations in resources tool
 		{
-			name:      "valid nodes cordon",
-			toolName:  "kubectl_nodes",
+			name:      "valid resources cordon",
+			toolName:  "kubectl_resources",
 			operation: "cordon",
+			resource:  "node",
+			wantErr:   false,
+		},
+		{
+			name:      "valid resources drain",
+			toolName:  "kubectl_resources",
+			operation: "drain",
 			resource:  "node",
 			wantErr:   false,
 		},

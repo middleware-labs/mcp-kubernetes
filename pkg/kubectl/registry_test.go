@@ -10,7 +10,7 @@ func TestRegisterKubectlTools(t *testing.T) {
 	tools := RegisterKubectlTools("admin")
 
 	// Verify we have the expected number of tools
-	expectedCount := 7
+	expectedCount := 6
 	if len(tools) != expectedCount {
 		t.Errorf("Expected %d consolidated tools, got %d", expectedCount, len(tools))
 	}
@@ -62,11 +62,6 @@ func TestConsolidatedToolDescriptions(t *testing.T) {
 			toolName:           "kubectl_cluster",
 			expectedOperations: []string{"cluster-info", "api-resources", "api-versions", "explain"},
 			expectedInDesc:     []string{"cluster", "API", "Examples:"},
-		},
-		{
-			toolName:           "kubectl_nodes",
-			expectedOperations: []string{"cordon", "uncordon", "drain", "taint"},
-			expectedInDesc:     []string{"nodes", "Examples:"},
 		},
 		{
 			toolName:           "kubectl_config",
@@ -140,7 +135,6 @@ func TestGetKubectlToolNames(t *testing.T) {
 		"kubectl_metadata",
 		"kubectl_diagnostics",
 		"kubectl_cluster",
-		"kubectl_nodes",
 		"kubectl_config",
 	}
 
@@ -246,17 +240,17 @@ func TestMapOperationToCommand_AllTools(t *testing.T) {
 			resource:  "pod",
 			want:      "explain",
 		},
-		// kubectl_nodes tests
+		// Node operations in kubectl_resources
 		{
-			name:      "nodes cordon",
-			toolName:  "kubectl_nodes",
+			name:      "resources cordon",
+			toolName:  "kubectl_resources",
 			operation: "cordon",
 			resource:  "node",
 			want:      "cordon",
 		},
 		{
-			name:      "nodes taint",
-			toolName:  "kubectl_nodes",
+			name:      "resources taint",
+			toolName:  "kubectl_resources",
 			operation: "taint",
 			resource:  "nodes",
 			want:      "taint",
@@ -329,7 +323,6 @@ func TestRegisterKubectlTools_AccessLevelFiltering(t *testing.T) {
 			unexpectedTools: []string{
 				"kubectl_workloads",
 				"kubectl_metadata",
-				"kubectl_nodes",
 			},
 		},
 		{
@@ -343,9 +336,7 @@ func TestRegisterKubectlTools_AccessLevelFiltering(t *testing.T) {
 				"kubectl_cluster",
 				"kubectl_config",
 			},
-			unexpectedTools: []string{
-				"kubectl_nodes", // nodes tool is admin only
-			},
+			unexpectedTools: []string{},
 		},
 		{
 			name:        "admin access level",
@@ -356,7 +347,6 @@ func TestRegisterKubectlTools_AccessLevelFiltering(t *testing.T) {
 				"kubectl_metadata",
 				"kubectl_diagnostics",
 				"kubectl_cluster",
-				"kubectl_nodes",
 				"kubectl_config",
 			},
 			unexpectedTools: []string{}, // admin has access to all tools

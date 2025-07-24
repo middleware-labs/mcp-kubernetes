@@ -49,7 +49,6 @@ func RegisterKubectlTools(accessLevel string) []mcp.Tool {
 		{creator: toolCreator(createConfigTool), minAccess: AccessLevelReadOnly, readOnlyMode: true},
 		{creator: toolCreatorSimple(createWorkloadsTool), minAccess: AccessLevelReadWrite},
 		{creator: toolCreatorSimple(createMetadataTool), minAccess: AccessLevelReadWrite},
-		{creator: toolCreatorSimple(createNodesTool), minAccess: AccessLevelAdmin},
 	}
 
 	// Normalize access level
@@ -133,15 +132,22 @@ Available operations:
 - apply: Apply a configuration to a resource
 - patch: Update fields of a resource
 - replace: Replace a resource
+- cordon: Mark node as unschedulable (admin only)
+- uncordon: Mark node as schedulable (admin only)
+- drain: Drain node in preparation for maintenance (admin only)
+- taint: Update taints on nodes (admin only)
 
-Common resources: pods, deployments, services, configmaps, secrets, namespaces, etc.
+Common resources: pods, deployments, services, configmaps, secrets, namespaces, nodes, etc.
 
 Examples:
 - Get pods: operation='get', resource='pods', args='-n default'
 - Describe deployment: operation='describe', resource='deployment', args='myapp -n production'
 - Apply config: operation='apply', resource='', args='-f deployment.yaml'
-- Delete service: operation='delete', resource='service', args='myservice -n default'`
-		operationDesc = "The operation to perform: get, describe, create, delete, apply, patch, replace"
+- Delete service: operation='delete', resource='service', args='myservice -n default'
+- Cordon node: operation='cordon', resource='node', args='worker-1'
+- Drain node: operation='drain', resource='node', args='worker-1 --ignore-daemonsets'
+- Add taint: operation='taint', resource='nodes', args='worker-1 key=value:NoSchedule'`
+		operationDesc = "The operation to perform: get, describe, create, delete, apply, patch, replace, cordon, uncordon, drain, taint"
 	}
 
 	return mcp.NewTool("kubectl_resources",
@@ -295,39 +301,6 @@ Examples:
 	)
 }
 
-// createNodesTool creates the node management tool
-func createNodesTool() mcp.Tool {
-	description := `Manage Kubernetes nodes.
-
-Available operations:
-- cordon: Mark node as unschedulable
-- uncordon: Mark node as schedulable
-- drain: Drain node in preparation for maintenance
-- taint: Update taints on nodes
-
-Examples:
-- Cordon node: operation='cordon', resource='node', args='worker-1'
-- Drain node: operation='drain', resource='node', args='worker-1 --ignore-daemonsets'
-- Add taint: operation='taint', resource='nodes', args='worker-1 key=value:NoSchedule'
-- Remove taint: operation='taint', resource='nodes', args='worker-1 key:NoSchedule-'`
-
-	return mcp.NewTool("kubectl_nodes",
-		mcp.WithDescription(description),
-		mcp.WithString("operation",
-			mcp.Required(),
-			mcp.Description("The operation to perform: cordon, uncordon, drain, taint"),
-		),
-		mcp.WithString("resource",
-			mcp.Required(),
-			mcp.Description("Usually 'node' or 'nodes'"),
-		),
-		mcp.WithString("args",
-			mcp.Required(),
-			mcp.Description("Node names and operation-specific flags"),
-		),
-	)
-}
-
 // createConfigTool creates the configuration tool
 func createConfigTool(readOnly bool) mcp.Tool {
 	var description string
@@ -384,7 +357,6 @@ func GetKubectlToolNames() []string {
 		"kubectl_metadata",
 		"kubectl_diagnostics",
 		"kubectl_cluster",
-		"kubectl_nodes",
 		"kubectl_config",
 	}
 }
@@ -406,8 +378,6 @@ func MapOperationToCommand(toolName, operation, resource string) (string, error)
 	case "kubectl_diagnostics":
 		return operation, nil
 	case "kubectl_cluster":
-		return operation, nil
-	case "kubectl_nodes":
 		return operation, nil
 	case "kubectl_config":
 		if operation == "auth" {
