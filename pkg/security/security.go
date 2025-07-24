@@ -9,9 +9,9 @@ import (
 type AccessLevel string
 
 const (
-	AccessLevelReadOnly   AccessLevel = "readonly"
-	AccessLevelReadWrite  AccessLevel = "readwrite"
-	AccessLevelAdmin      AccessLevel = "admin"
+	AccessLevelReadOnly  AccessLevel = "readonly"
+	AccessLevelReadWrite AccessLevel = "readwrite"
+	AccessLevelAdmin     AccessLevel = "admin"
 )
 
 // SecurityConfig holds security-related configuration

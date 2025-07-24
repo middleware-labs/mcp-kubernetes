@@ -11,33 +11,415 @@ type KubectlCommand struct {
 	ArgsExample string // Example of command arguments, such as "pods" or "-f deployment.yaml"
 }
 
-// RegisterKubectl registers the generic kubectl tool (legacy)
-func RegisterKubectl() mcp.Tool {
-	return mcp.NewTool("Run-kubectl-command",
-		mcp.WithDescription("Run kubectl command and get result"),
-		mcp.WithString("command",
+// Example shows how to use a consolidated tool
+type Example struct {
+	Description string
+	Operation   string
+	Resource    string
+	Args        string
+}
+
+// Access level constants
+const (
+	AccessLevelReadOnly  = "readonly"
+	AccessLevelReadWrite = "readwrite"
+	AccessLevelAdmin     = "admin"
+)
+
+// toolCreator is a function that creates a tool, possibly with read-only restrictions
+type toolCreator func(readOnly bool) mcp.Tool
+
+// toolCreatorSimple is a function that creates a tool without read-only parameter
+type toolCreatorSimple func() mcp.Tool
+
+// toolRegistration defines when a tool should be registered
+type toolRegistration struct {
+	creator      interface{} // either toolCreator or toolCreatorSimple
+	minAccess    string      // minimum access level required: "readonly", "readwrite", or "admin"
+	readOnlyMode bool        // whether to pass true to creator when in readonly mode
+}
+
+// RegisterKubectlTools returns kubectl tools filtered by access level
+func RegisterKubectlTools(accessLevel string) []mcp.Tool {
+	// Define tool registry with access requirements
+	toolRegistry := []toolRegistration{
+		{creator: toolCreator(createResourcesTool), minAccess: AccessLevelReadOnly, readOnlyMode: true},
+		{creator: toolCreatorSimple(createDiagnosticsTool), minAccess: AccessLevelReadOnly},
+		{creator: toolCreatorSimple(createClusterTool), minAccess: AccessLevelReadOnly},
+		{creator: toolCreator(createConfigTool), minAccess: AccessLevelReadOnly, readOnlyMode: true},
+		{creator: toolCreatorSimple(createWorkloadsTool), minAccess: AccessLevelReadWrite},
+		{creator: toolCreatorSimple(createMetadataTool), minAccess: AccessLevelReadWrite},
+		{creator: toolCreatorSimple(createNodesTool), minAccess: AccessLevelAdmin},
+	}
+
+	// Normalize access level
+	if !isValidAccessLevel(accessLevel) {
+		accessLevel = AccessLevelReadOnly // Default to readonly for safety
+	}
+
+	var tools []mcp.Tool
+	for _, reg := range toolRegistry {
+		if shouldRegisterTool(reg.minAccess, accessLevel) {
+			tool := createToolFromRegistration(reg, accessLevel)
+			tools = append(tools, tool)
+		}
+	}
+
+	return tools
+}
+
+// isValidAccessLevel checks if the given access level is valid
+func isValidAccessLevel(accessLevel string) bool {
+	return accessLevel == AccessLevelReadOnly ||
+		accessLevel == AccessLevelReadWrite ||
+		accessLevel == AccessLevelAdmin
+}
+
+// shouldRegisterTool determines if a tool should be registered based on access levels
+func shouldRegisterTool(minAccess, currentAccess string) bool {
+	accessLevels := map[string]int{
+		AccessLevelReadOnly:  1,
+		AccessLevelReadWrite: 2,
+		AccessLevelAdmin:     3,
+	}
+
+	minLevel := accessLevels[minAccess]
+	currentLevel := accessLevels[currentAccess]
+
+	return currentLevel >= minLevel
+}
+
+// createToolFromRegistration creates a tool from its registration definition
+func createToolFromRegistration(reg toolRegistration, accessLevel string) mcp.Tool {
+	switch creator := reg.creator.(type) {
+	case toolCreator:
+		// Tools that support read-only mode
+		readOnly := accessLevel == AccessLevelReadOnly && reg.readOnlyMode
+		return creator(readOnly)
+	case toolCreatorSimple:
+		// Tools that don't have read-only variants
+		return creator()
+	default:
+		panic("invalid tool creator type")
+	}
+}
+
+// createResourcesTool creates the main resource management tool
+func createResourcesTool(readOnly bool) mcp.Tool {
+	var description string
+	var operationDesc string
+
+	if readOnly {
+		description = `View Kubernetes resources with read-only operations.
+
+Available operations:
+- get: Display one or many resources
+- describe: Show detailed information about resources
+
+Common resources: pods, deployments, services, configmaps, secrets, namespaces, etc.
+
+Examples:
+- Get pods: operation='get', resource='pods', args='-n default'
+- Describe deployment: operation='describe', resource='deployment', args='myapp -n production'`
+		operationDesc = "The operation to perform: get, describe"
+	} else {
+		description = `Manage Kubernetes resources with standard CRUD operations.
+
+Available operations:
+- get: Display one or many resources
+- describe: Show detailed information about resources
+- create: Create a resource from a file or stdin
+- delete: Delete resources
+- apply: Apply a configuration to a resource
+- patch: Update fields of a resource
+- replace: Replace a resource
+
+Common resources: pods, deployments, services, configmaps, secrets, namespaces, etc.
+
+Examples:
+- Get pods: operation='get', resource='pods', args='-n default'
+- Describe deployment: operation='describe', resource='deployment', args='myapp -n production'
+- Apply config: operation='apply', resource='', args='-f deployment.yaml'
+- Delete service: operation='delete', resource='service', args='myservice -n default'`
+		operationDesc = "The operation to perform: get, describe, create, delete, apply, patch, replace"
+	}
+
+	return mcp.NewTool("kubectl_resources",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
 			mcp.Required(),
-			mcp.Description("The kubectl command to execute"),
+			mcp.Description(operationDesc),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("The resource type (e.g., pods, deployments, services) or empty for file-based operations"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Additional arguments like resource names, namespaces, and flags"),
 		),
 	)
 }
 
-// RegisterKubectlCommand registers a specific kubectl command as an MCP tool
-func RegisterKubectlCommand(cmd KubectlCommand) mcp.Tool {
-	description := "Run kubectl " + cmd.Name + " command: " + cmd.Description + "."
+// createWorkloadsTool creates the workload management tool
+func createWorkloadsTool() mcp.Tool {
+	description := `Manage Kubernetes workloads and their lifecycle.
 
-	// Add example if available, with proper punctuation
-	if cmd.ArgsExample != "" {
-		description += "\nExample: `" + cmd.ArgsExample + "`"
-	}
+Available operations:
+- run: Run a particular image on the cluster
+- expose: Expose a resource as a new Kubernetes service
+- scale: Set a new size for a deployment, replica set, or replication controller
+- autoscale: Auto-scale a deployment, replica set, stateful set, or replication controller
+- rollout: Manage the rollout of resources (status, history, undo, restart, pause, resume)
 
-	return mcp.NewTool("kubectl_"+cmd.Name,
+Examples:
+- Run nginx: operation='run', resource='deployment', args='nginx --image=nginx:latest'
+- Scale deployment: operation='scale', resource='deployment', args='myapp --replicas=3'
+- Rollout status: operation='rollout', resource='status', args='deployment/myapp'
+- Autoscale: operation='autoscale', resource='deployment', args='myapp --min=2 --max=10'`
+
+	return mcp.NewTool("kubectl_workloads",
 		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description("The operation to perform: run, expose, scale, autoscale, rollout"),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("The resource type or rollout subcommand"),
+		),
 		mcp.WithString("args",
 			mcp.Required(),
-			mcp.Description("Arguments for the `kubectl "+cmd.Name+"` command"),
+			mcp.Description("Additional arguments specific to the operation"),
 		),
 	)
+}
+
+// createMetadataTool creates the metadata management tool
+func createMetadataTool() mcp.Tool {
+	description := `Manage metadata for Kubernetes resources.
+
+Available operations:
+- label: Update labels on a resource
+- annotate: Update annotations on a resource
+- set: Set specific features on objects (e.g., image, resources, selector)
+
+Examples:
+- Add label: operation='label', resource='pods', args='mypod env=production'
+- Remove label: operation='label', resource='pods', args='mypod env-'
+- Add annotation: operation='annotate', resource='deployment', args='myapp description="My application"'
+- Set image: operation='set', resource='image', args='deployment/myapp nginx=nginx:1.19'`
+
+	return mcp.NewTool("kubectl_metadata",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description("The operation to perform: label, annotate, set"),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("The resource type to modify"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Resource names and metadata changes"),
+		),
+	)
+}
+
+// createDiagnosticsTool creates the diagnostics and debugging tool
+func createDiagnosticsTool() mcp.Tool {
+	description := `Diagnose and debug Kubernetes resources.
+
+Available operations:
+- logs: Print logs for a container in a pod
+- events: Display events
+- top: Display resource usage (CPU/Memory)
+- exec: Execute a command in a container
+- cp: Copy files to/from containers
+
+Examples:
+- View logs: operation='logs', resource='pod', args='mypod -n default'
+- Follow logs: operation='logs', resource='pod', args='mypod -f --tail=100'
+- Get events: operation='events', resource='', args='--all-namespaces'
+- Exec shell: operation='exec', resource='pod', args='mypod -it -- /bin/bash'
+- Copy file: operation='cp', resource='', args='mypod:/path/to/file ./local/file'`
+
+	return mcp.NewTool("kubectl_diagnostics",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description("The operation to perform: logs, events, top, exec, cp"),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("The resource type (usually 'pod' or empty for some operations)"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Resource names and operation-specific flags"),
+		),
+	)
+}
+
+// createClusterTool creates the cluster information tool
+func createClusterTool() mcp.Tool {
+	description := `Get information about the Kubernetes cluster and API.
+
+Available operations:
+- cluster-info: Display cluster information
+- api-resources: Print supported API resources
+- api-versions: Print supported API versions
+- explain: Get documentation for a resource
+
+Examples:
+- Cluster info: operation='cluster-info', resource='', args=''
+- List resources: operation='api-resources', resource='', args='--namespaced=true'
+- API versions: operation='api-versions', resource='', args=''
+- Explain pod: operation='explain', resource='pod', args='--recursive'`
+
+	return mcp.NewTool("kubectl_cluster",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description("The operation to perform: cluster-info, api-resources, api-versions, explain"),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("The resource type for explain operation, or empty for others"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Additional flags and options"),
+		),
+	)
+}
+
+// createNodesTool creates the node management tool
+func createNodesTool() mcp.Tool {
+	description := `Manage Kubernetes nodes.
+
+Available operations:
+- cordon: Mark node as unschedulable
+- uncordon: Mark node as schedulable
+- drain: Drain node in preparation for maintenance
+- taint: Update taints on nodes
+
+Examples:
+- Cordon node: operation='cordon', resource='node', args='worker-1'
+- Drain node: operation='drain', resource='node', args='worker-1 --ignore-daemonsets'
+- Add taint: operation='taint', resource='nodes', args='worker-1 key=value:NoSchedule'
+- Remove taint: operation='taint', resource='nodes', args='worker-1 key:NoSchedule-'`
+
+	return mcp.NewTool("kubectl_nodes",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description("The operation to perform: cordon, uncordon, drain, taint"),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("Usually 'node' or 'nodes'"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Node names and operation-specific flags"),
+		),
+	)
+}
+
+// createConfigTool creates the configuration tool
+func createConfigTool(readOnly bool) mcp.Tool {
+	var description string
+	var operationDesc string
+
+	if readOnly {
+		description = `Work with Kubernetes configurations (read-only).
+
+Available operations:
+- diff: Diff the live version against what would be applied
+- auth: Inspect authorization (can-i)
+
+Examples:
+- Diff config: operation='diff', resource='', args='-f deployment.yaml'
+- Check auth: operation='auth', resource='can-i', args='create pods --namespace=default'`
+		operationDesc = "The operation to perform: diff, auth"
+	} else {
+		description = `Work with Kubernetes configurations.
+
+Available operations:
+- diff: Diff the live version against what would be applied
+- auth: Inspect authorization (can-i)
+- certificate: Manage certificate resources (approve, deny)
+
+Examples:
+- Diff config: operation='diff', resource='', args='-f deployment.yaml'
+- Check auth: operation='auth', resource='can-i', args='create pods --namespace=default'
+- Approve cert: operation='certificate', resource='approve', args='csr-name'`
+		operationDesc = "The operation to perform: diff, auth, certificate"
+	}
+
+	return mcp.NewTool("kubectl_config",
+		mcp.WithDescription(description),
+		mcp.WithString("operation",
+			mcp.Required(),
+			mcp.Description(operationDesc),
+		),
+		mcp.WithString("resource",
+			mcp.Required(),
+			mcp.Description("Subcommand for auth/certificate operations, or empty for diff"),
+		),
+		mcp.WithString("args",
+			mcp.Required(),
+			mcp.Description("Operation-specific arguments"),
+		),
+	)
+}
+
+// GetKubectlToolNames returns the names of all kubectl tools
+func GetKubectlToolNames() []string {
+	return []string{
+		"kubectl_resources",
+		"kubectl_workloads",
+		"kubectl_metadata",
+		"kubectl_diagnostics",
+		"kubectl_cluster",
+		"kubectl_nodes",
+		"kubectl_config",
+	}
+}
+
+// MapOperationToCommand maps consolidated operations to kubectl commands
+func MapOperationToCommand(toolName, operation, resource string) (string, error) {
+	// This function will be used by the executor to map operations to actual kubectl commands
+	// For now, return a basic mapping
+	switch toolName {
+	case "kubectl_resources":
+		return operation, nil
+	case "kubectl_workloads":
+		if operation == "rollout" {
+			return "rollout " + resource, nil
+		}
+		return operation, nil
+	case "kubectl_metadata":
+		return operation, nil
+	case "kubectl_diagnostics":
+		return operation, nil
+	case "kubectl_cluster":
+		return operation, nil
+	case "kubectl_nodes":
+		return operation, nil
+	case "kubectl_config":
+		if operation == "auth" {
+			return "auth " + resource, nil
+		}
+		if operation == "certificate" {
+			return "certificate " + resource, nil
+		}
+		return operation, nil
+	default:
+		return "", nil
+	}
 }
 
 // GetReadOnlyKubectlCommands returns all read-only kubectl commands
