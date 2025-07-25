@@ -87,7 +87,7 @@ func (cfg *ConfigData) ParseFlags() error {
 	return nil
 }
 
-var availableTools = []string{"kubectl", "helm", "cilium"}
+var availableTools = []string{"kubectl", "helm", "cilium", "hubble"}
 
 // IsToolSupported checks if a tool is supported
 func IsToolSupported(tool string) bool {
