@@ -47,8 +47,7 @@ var (
 
 	// HubbleReadOperations defines hubble operations that don't modify state
 	HubbleReadOperations = []string{
-		"status", "version", "help", "observe", "list", "reflect", "config",
-		"metrics", "peer", "recorder", "describe", "get",
+		"status", "version", "help", "observe", "status", "list", "config",
 	}
 )
 
