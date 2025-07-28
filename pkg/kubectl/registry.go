@@ -119,7 +119,12 @@ Common resources: pods, deployments, services, configmaps, secrets, namespaces, 
 
 Examples:
 - Get pods: operation='get', resource='pods', args='-n default'
-- Describe deployment: operation='describe', resource='deployment', args='myapp -n production'`
+- Get specific pod: operation='get', resource='pods', args='nginx-pod -n default'
+- Get with selector: operation='get', resource='pods', args='-l app=nginx'
+- Get all namespaces: operation='get', resource='pods', args='--all-namespaces'
+- Describe deployment: operation='describe', resource='deployment', args='myapp -n production'
+- Describe all pods: operation='describe', resource='pods', args=''
+- Describe with selector: operation='describe', resource='pods', args='-l name=myLabel'`
 		operationDesc = "The operation to perform: get, describe"
 	} else {
 		description = `Manage Kubernetes resources with standard CRUD operations.
@@ -141,12 +146,35 @@ Common resources: pods, deployments, services, configmaps, secrets, namespaces, 
 
 Examples:
 - Get pods: operation='get', resource='pods', args='-n default'
+- Get specific pod: operation='get', resource='pods', args='nginx-pod -n default'
+- Get with selector: operation='get', resource='pods', args='-l app=nginx'
+- Get all namespaces: operation='get', resource='pods', args='--all-namespaces'
 - Describe deployment: operation='describe', resource='deployment', args='myapp -n production'
+- Describe all pods: operation='describe', resource='pods', args=''
+- Describe with selector: operation='describe', resource='pods', args='-l name=myLabel'
+- Create from file: operation='create', resource='', args='-f deployment.yaml'
+- Create deployment: operation='create', resource='deployment', args='nginx --image=nginx'
+- Create configmap: operation='create', resource='configmap', args='my-config --from-literal=key1=value1'
 - Apply config: operation='apply', resource='', args='-f deployment.yaml'
+- Apply kustomize: operation='apply', resource='', args='-k ./manifests/'
+- Patch node: operation='patch', resource='node', args='k8s-node-1 -p \'{"spec":{"unschedulable":true}}\''
+- Patch from file: operation='patch', resource='', args='-f node.json -p \'{"spec":{"unschedulable":true}}\''
+- Patch pod image: operation='patch', resource='pod', args='valid-pod -p \'{"spec":{"containers":[{"name":"app","image":"nginx:1.20"}]}}\''
+- Patch with JSON type: operation='patch', resource='pod', args='valid-pod --type=json -p \'[{"op":"replace","path":"/spec/containers/0/image","value":"nginx:1.20"}]\''
+- Replace from file: operation='replace', resource='', args='-f ./updated-pod.json'
+- Force replace: operation='replace', resource='', args='--force -f ./pod.json'
 - Delete service: operation='delete', resource='service', args='myservice -n default'
+- Delete from file: operation='delete', resource='', args='-f pod.yaml'
+- Delete with selector: operation='delete', resource='pods', args='-l name=myLabel'
 - Cordon node: operation='cordon', resource='node', args='worker-1'
+- Uncordon node: operation='uncordon', resource='node', args='worker-1'
+- Cordon with selector: operation='cordon', resource='node', args='-l node-type=worker'
 - Drain node: operation='drain', resource='node', args='worker-1 --ignore-daemonsets'
-- Add taint: operation='taint', resource='nodes', args='worker-1 key=value:NoSchedule'`
+- Drain with force: operation='drain', resource='node', args='worker-1 --force --ignore-daemonsets'
+- Drain with grace period: operation='drain', resource='node', args='worker-1 --grace-period=900'
+- Add taint: operation='taint', resource='nodes', args='worker-1 dedicated=special-user:NoSchedule'
+- Remove taint: operation='taint', resource='nodes', args='worker-1 dedicated:NoSchedule-'
+- Taint with selector: operation='taint', resource='node', args='-l myLabel=X dedicated=foo:PreferNoSchedule'`
 		operationDesc = "The operation to perform: get, describe, create, delete, apply, patch, replace, cordon, uncordon, drain, taint"
 	}
 
@@ -172,17 +200,26 @@ func createWorkloadsTool() mcp.Tool {
 	description := `Manage Kubernetes workloads and their lifecycle.
 
 Available operations:
-- run: Run a particular image on the cluster
+- run: Run a Pod with particular image on the cluster
 - expose: Expose a resource as a new Kubernetes service
 - scale: Set a new size for a deployment, replica set, or replication controller
 - autoscale: Auto-scale a deployment, replica set, stateful set, or replication controller
 - rollout: Manage the rollout of resources (status, history, undo, restart, pause, resume)
 
 Examples:
-- Run nginx: operation='run', resource='deployment', args='nginx --image=nginx:latest'
+- Run nginx pod: operation='run', resource='', args='nginx --image=nginx'
+- Run with port: operation='run', resource='', args='hazelcast --image=hazelcast/hazelcast --port=5701'
+- Run with env vars: operation='run', resource='', args='hazelcast --image=hazelcast/hazelcast --env="DNS_DOMAIN=cluster"'
+- Run with labels: operation='run', resource='', args='nginx --image=nginx --labels="app=web,env=prod"'
+- Expose deployment: operation='expose', resource='deployment', args='nginx --port=80 --target-port=8000'
+- Expose pod: operation='expose', resource='pod', args='valid-pod --port=444 --name=frontend'
 - Scale deployment: operation='scale', resource='deployment', args='myapp --replicas=3'
+- Autoscale deployment: operation='autoscale', resource='deployment', args='foo --min=2 --max=10'
+- Autoscale with CPU: operation='autoscale', resource='rc', args='foo --max=5 --cpu-percent=80'
 - Rollout status: operation='rollout', resource='status', args='deployment/myapp'
-- Autoscale: operation='autoscale', resource='deployment', args='myapp --min=2 --max=10'`
+- Rollout history: operation='rollout', resource='history', args='deployment/abc'
+- Rollout undo: operation='rollout', resource='undo', args='deployment/abc'
+- Rollout restart: operation='rollout', resource='restart', args='deployment/abc'`
 
 	return mcp.NewTool("kubectl_workloads",
 		mcp.WithDescription(description),
@@ -192,7 +229,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type or rollout subcommand"),
+			mcp.Description("The resource type for expose/scale/autoscale, subcommand for rollout, or empty for run"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
@@ -211,10 +248,13 @@ Available operations:
 - set: Set specific features on objects (e.g., image, resources, selector)
 
 Examples:
-- Add label: operation='label', resource='pods', args='mypod env=production'
-- Remove label: operation='label', resource='pods', args='mypod env-'
-- Add annotation: operation='annotate', resource='deployment', args='myapp description="My application"'
-- Set image: operation='set', resource='image', args='deployment/myapp nginx=nginx:1.19'`
+- Add label: operation='label', resource='pods', args='foo unhealthy=true'
+- Overwrite label: operation='label', resource='pods', args='--overwrite foo status=unhealthy'
+- Remove label: operation='label', resource='pods', args='foo bar-'
+- Add annotation: operation='annotate', resource='pods', args='foo description="my frontend"'
+- Overwrite annotation: operation='annotate', resource='pods', args='--overwrite foo description="my frontend running nginx"'
+- Remove annotation: operation='annotate', resource='pods', args='foo description-'
+- Set image: operation='set', resource='image', args='deployment/nginx busybox=busybox nginx=nginx:1.9.1'`
 
 	return mcp.NewTool("kubectl_metadata",
 		mcp.WithDescription(description),
@@ -245,11 +285,18 @@ Available operations:
 - cp: Copy files to/from containers
 
 Examples:
-- View logs: operation='logs', resource='pod', args='mypod -n default'
-- Follow logs: operation='logs', resource='pod', args='mypod -f --tail=100'
-- Get events: operation='events', resource='', args='--all-namespaces'
-- Exec shell: operation='exec', resource='pod', args='mypod -it -- /bin/bash'
-- Copy file: operation='cp', resource='', args='mypod:/path/to/file ./local/file'`
+- Logs for default container: operation='logs', resource='pod', args='nginx'
+- Logs for specific container: operation='logs', resource='pod', args='nginx -c ruby-container'
+- Logs with selector: operation='logs', resource='pod', args='-l app=nginx --all-containers=true'
+- Get events: operation='events', resource='events', args='--all-namespaces'
+- Get events namespace: operation='events', resource='events', args='-n default'
+- Top pods: operation='top', resource='pod', args=''
+- Top nodes: operation='top', resource='node', args=''
+- Top with containers: operation='top', resource='pod', args='POD_NAME --containers'
+- Exec command: operation='exec', resource='pod', args='mypod -- date'
+- Copy to pod: operation='cp', resource='', args='/tmp/foo_dir some-pod:/tmp/bar_dir'
+- Copy from pod: operation='cp', resource='', args='some-namespace/some-pod:/tmp/foo /tmp/bar'
+- Copy with container: operation='cp', resource='', args='/tmp/foo some-pod:/tmp/bar -c specific-container'`
 
 	return mcp.NewTool("kubectl_diagnostics",
 		mcp.WithDescription(description),
@@ -280,9 +327,15 @@ Available operations:
 
 Examples:
 - Cluster info: operation='cluster-info', resource='', args=''
-- List resources: operation='api-resources', resource='', args='--namespaced=true'
+- Cluster info dump: operation='cluster-info', resource='dump', args=''
+- List resources: operation='api-resources', resource='', args=''
+- Namespaced resources: operation='api-resources', resource='', args='--namespaced=true'
+- Non-namespaced resources: operation='api-resources', resource='', args='--namespaced=false'
+- Resources by group: operation='api-resources', resource='', args='--api-group=rbac.authorization.k8s.io'
 - API versions: operation='api-versions', resource='', args=''
-- Explain pod: operation='explain', resource='pod', args='--recursive'`
+- Explain pod: operation='explain', resource='pods', args=''
+- Explain field: operation='explain', resource='pods.spec.containers', args=''
+- Explain with version: operation='explain', resource='deployments', args='--api-version=apps/v1'`
 
 	return mcp.NewTool("kubectl_cluster",
 		mcp.WithDescription(description),
@@ -314,8 +367,13 @@ Available operations:
 - auth: Inspect authorization (can-i)
 
 Examples:
-- Diff config: operation='diff', resource='', args='-f deployment.yaml'
-- Check auth: operation='auth', resource='can-i', args='create pods --namespace=default'`
+- Diff config: operation='diff', resource='', args='-f pod.json'
+- Diff from stdin: operation='diff', resource='', args='-f -'
+- Diff with selector: operation='diff', resource='', args='-f manifest.yaml -l app=nginx'
+- Check auth: operation='auth', resource='can-i', args='create pods --all-namespaces'
+- Check auth resource: operation='auth', resource='can-i', args='list deployments.apps'
+- Check auth as user: operation='auth', resource='can-i', args='list pods --as=system:serviceaccount:dev:foo -n prod'
+- List permissions: operation='auth', resource='can-i', args='--list --namespace=foo'`
 		operationDesc = "The operation to perform: diff, auth"
 	} else {
 		description = `Work with Kubernetes configurations.
@@ -326,9 +384,14 @@ Available operations:
 - certificate: Manage certificate resources (approve, deny)
 
 Examples:
-- Diff config: operation='diff', resource='', args='-f deployment.yaml'
-- Check auth: operation='auth', resource='can-i', args='create pods --namespace=default'
-- Approve cert: operation='certificate', resource='approve', args='csr-name'`
+- Diff config: operation='diff', resource='', args='-f pod.json'
+- Diff with selector: operation='diff', resource='', args='-f manifest.yaml -l app=nginx'
+- Check auth: operation='auth', resource='can-i', args='create pods --all-namespaces'
+- Check auth resource: operation='auth', resource='can-i', args='list deployments.apps'
+- Check auth as user: operation='auth', resource='can-i', args='list pods --as=system:serviceaccount:dev:foo -n prod'
+- List permissions: operation='auth', resource='can-i', args='--list --namespace=foo'
+- Approve cert: operation='certificate', resource='approve', args='csr-name'
+- Deny cert: operation='certificate', resource='deny', args='csr-name'`
 		operationDesc = "The operation to perform: diff, auth, certificate"
 	}
 
