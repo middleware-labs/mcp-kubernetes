@@ -20,7 +20,12 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags "-X github.com/Azure/mcp-kubernetes/pkg/version.GitVersion=${VERSION} -X github.com/Azure/mcp-kubernetes/pkg/version.GitCommit=${GIT_COMMIT} -X github.com/Azure/mcp-kubernetes/pkg/version.BuildMetadata=${BUILD_DATE} -X github.com/Azure/mcp-kubernetes/pkg/version.GitTreeState=${GIT_TREE_STATE}" -o mcp-kubernetes.exe ./cmd/mcp-kubernetes
+RUN powershell -Command " \
+    $env:VERSION = '%VERSION%'; \
+    $env:GIT_COMMIT = '%GIT_COMMIT%'; \
+    $env:BUILD_DATE = '%BUILD_DATE%'; \
+    $env:GIT_TREE_STATE = '%GIT_TREE_STATE%'; \
+    go build -ldflags \"-X github.com/Azure/mcp-kubernetes/pkg/version.GitVersion=$env:VERSION -X github.com/Azure/mcp-kubernetes/pkg/version.GitCommit=$env:GIT_COMMIT -X github.com/Azure/mcp-kubernetes/pkg/version.BuildMetadata=$env:BUILD_DATE -X github.com/Azure/mcp-kubernetes/pkg/version.GitTreeState=$env:GIT_TREE_STATE\" -o mcp-kubernetes.exe ./cmd/mcp-kubernetes"
 
 # Runtime stage
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
@@ -62,9 +67,11 @@ RUN powershell -Command \
 RUN powershell -Command \
     $cliVersion = (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt' -UseBasicParsing).Content.Trim(); \
     $arch = if ($env:TARGETARCH -eq 'arm64') {'arm64'} else {'amd64'}; \
-    Invoke-WebRequest -Uri "https://github.com/cilium/cilium-cli/releases/download/$cliVersion/cilium-windows-$arch.tar.gz" -OutFile 'cilium.tar.gz' -UseBasicParsing; \
-    tar -xzf cilium.tar.gz -C "C:\\Windows\\System32"; \
-    Remove-Item cilium.tar.gz
+    Invoke-WebRequest -Uri "https://github.com/cilium/cilium-cli/releases/download/$cliVersion/cilium-windows-$arch.zip" -OutFile 'cilium.zip' -UseBasicParsing; \
+    Expand-Archive -Path cilium.zip -DestinationPath "C:\\cilium"; \
+    Move-Item "C:\\cilium\\cilium.exe" "C:\\Windows\\System32\\cilium.exe"; \
+    Remove-Item -Recurse -Force "C:\\cilium"; \
+    Remove-Item cilium.zip
 
 # Install hubble CLI
 RUN powershell -Command \
