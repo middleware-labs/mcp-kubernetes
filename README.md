@@ -95,7 +95,7 @@ Command line arguments:
 ```sh
 Usage of ./mcp-kubernetes:
       --access-level string       Access level (readonly, readwrite, or admin) (default "readonly")
-      --additional-tools string   Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium
+      --additional-tools string   Comma-separated list of additional tools to support (kubectl is always enabled). Available: helm,cilium,hubble
       --allow-namespaces string   Comma-separated list of namespaces to allow (empty means all allowed)
       --host string               Host to listen for the server (only used with transport sse or streamable-http) (default "127.0.0.1")
       --port int                  Port to listen for the server (only used with transport sse or streamable-http) (default 8000)
@@ -393,7 +393,28 @@ Run Cilium commands for network policies and observability.
 **Example:**
 
 ```bash
-command: "status --brief"
+command: "status"
+```
+
+</details>
+
+<details>
+<summary><b>hubble</b> - Hubble observability commands</summary>
+
+**Available when**: `--additional-tools=hubble` is specified
+
+Run Hubble commands for network monitoring and debugging in Cilium-enabled clusters.
+
+**Parameters:**
+
+- `command`: The hubble command to execute
+
+**Example:**
+
+```bash
+command: "status"
+command: "observe observe --namespace backend-jobs  --from-label 'app=web'"
+command: "list nodes"
 ```
 
 </details>
