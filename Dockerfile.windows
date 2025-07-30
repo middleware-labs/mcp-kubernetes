@@ -1,0 +1,96 @@
+# Build stage
+FROM golang:1.24-windowsservercore-ltsc2022 AS builder
+ARG VERSION
+ARG GIT_COMMIT
+ARG BUILD_DATE
+ARG GIT_TREE_STATE
+ARG TARGETOS=windows
+ARG TARGETARCH=amd64
+
+# Set working directory
+WORKDIR "C:\\mcp"
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN powershell -Command " \
+    $env:VERSION = '%VERSION%'; \
+    $env:GIT_COMMIT = '%GIT_COMMIT%'; \
+    $env:BUILD_DATE = '%BUILD_DATE%'; \
+    $env:GIT_TREE_STATE = '%GIT_TREE_STATE%'; \
+    go build -ldflags \"-X github.com/Azure/mcp-kubernetes/pkg/version.GitVersion=$env:VERSION -X github.com/Azure/mcp-kubernetes/pkg/version.GitCommit=$env:GIT_COMMIT -X github.com/Azure/mcp-kubernetes/pkg/version.BuildMetadata=$env:BUILD_DATE -X github.com/Azure/mcp-kubernetes/pkg/version.GitTreeState=$env:GIT_TREE_STATE\" -o mcp-kubernetes.exe ./cmd/mcp-kubernetes"
+
+# Runtime stage
+FROM mcr.microsoft.com/windows/servercore:ltsc2022
+ARG TARGETARCH=amd64
+
+# Install Chocolatey
+RUN powershell -Command \
+    Set-ExecutionPolicy Bypass -Scope Process -Force; \
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+    iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+
+# Set working directory
+WORKDIR "C:\\mcp"
+
+# Install git and other dependencies
+RUN choco install -y git
+
+# Create directory structure
+RUN mkdir "C:\\mcp\\.kube"
+
+# Install kubectl
+RUN powershell -Command \
+    $stableVersion = (Invoke-WebRequest -Uri 'https://dl.k8s.io/release/stable.txt' -UseBasicParsing).Content.Trim(); \
+    $arch = if ($env:TARGETARCH -eq 'arm64') {'arm64'} else {'amd64'}; \
+    Invoke-WebRequest -Uri "https://dl.k8s.io/release/$stableVersion/bin/windows/$arch/kubectl.exe" -OutFile 'C:\\kubectl.exe' -UseBasicParsing; \
+    Move-Item C:\\kubectl.exe C:\\Windows\\System32\\kubectl.exe
+
+# Install helm
+RUN powershell -Command \
+    $arch = if ($env:TARGETARCH -eq 'arm64') {'arm64'} else {'amd64'}; \
+    Invoke-WebRequest -Uri "https://get.helm.sh/helm-v3.17.4-windows-$arch.zip" -OutFile 'helm.zip' -UseBasicParsing; \
+    Expand-Archive -Path helm.zip -DestinationPath "C:\\helm"; \
+    Move-Item "C:\\helm\\windows-$arch\\helm.exe" "C:\\Windows\\System32\\helm.exe"; \
+    Remove-Item -Recurse -Force "C:\\helm"; \
+    Remove-Item helm.zip
+
+# Install cilium CLI
+RUN powershell -Command \
+    $cliVersion = (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/cilium/cilium-cli/main/stable.txt' -UseBasicParsing).Content.Trim(); \
+    $arch = if ($env:TARGETARCH -eq 'arm64') {'arm64'} else {'amd64'}; \
+    Invoke-WebRequest -Uri "https://github.com/cilium/cilium-cli/releases/download/$cliVersion/cilium-windows-$arch.zip" -OutFile 'cilium.zip' -UseBasicParsing; \
+    Expand-Archive -Path cilium.zip -DestinationPath "C:\\cilium"; \
+    Move-Item "C:\\cilium\\cilium.exe" "C:\\Windows\\System32\\cilium.exe"; \
+    Remove-Item -Recurse -Force "C:\\cilium"; \
+    Remove-Item cilium.zip
+
+# Install hubble CLI
+RUN powershell -Command \
+    $hubbleVersion = (Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/cilium/hubble/master/stable.txt' -UseBasicParsing).Content.Trim(); \
+    $arch = if ($env:TARGETARCH -eq 'arm64') {'arm64'} else {'amd64'}; \
+    Invoke-WebRequest -Uri "https://github.com/cilium/hubble/releases/download/$hubbleVersion/hubble-windows-$arch.tar.gz" -OutFile 'hubble.tar.gz' -UseBasicParsing; \
+    tar -xzf hubble.tar.gz -C "C:\\Windows\\System32"; \
+    Remove-Item hubble.tar.gz
+
+# Copy binary from builder
+COPY --from=builder "C:\\mcp\\mcp-kubernetes.exe" "C:\\mcp\\mcp-kubernetes.exe"
+
+# Expose the default port for sse/streamable-http transports
+EXPOSE 8000
+
+# Set environment variables
+ENV HOME="C:\\mcp"
+ENV KUBECONFIG="C:\\mcp\\.kube\\config"
+
+# Command to run
+ENTRYPOINT ["C:\\mcp\\mcp-kubernetes.exe"]
+CMD ["--transport", "streamable-http", "--host", "0.0.0.0"]
