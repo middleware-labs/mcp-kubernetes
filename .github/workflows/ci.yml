@@ -115,25 +115,6 @@ jobs:
           docker images mcp-kubernetes:test
           docker run --rm mcp-kubernetes:test --version || true
 
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    needs: [lint, test, args]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4.2.2
-        with:
-          fetch-depth: 0
-
-      - name: Build Windows Docker image
-        run: |
-          docker build --platform windows/amd64 -f Dockerfile.windows -t mcp-kubernetes:windows-test --build-arg VERSION=${{ needs.args.outputs.version }} --build-arg GIT_COMMIT=${{ needs.args.outputs.commit }} --build-arg BUILD_DATE=${{ needs.args.outputs.commit-date }} --build-arg GIT_TREE_STATE=${{ needs.args.outputs.tree-state }} .
-
-      - name: Validate Windows Docker image
-        run: |
-          docker images mcp-kubernetes:windows-test
-          docker run --rm mcp-kubernetes:windows-test --help || true
-
   security:
     name: Security Scan
     runs-on: ubuntu-latest
