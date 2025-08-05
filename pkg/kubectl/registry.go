@@ -293,7 +293,7 @@ Examples:
 - Top pods: operation='top', resource='pod', args=''
 - Top nodes: operation='top', resource='node', args=''
 - Top with containers: operation='top', resource='pod', args='POD_NAME --containers'
-- Exec command: operation='exec', resource='pod', args='mypod -- date'
+- Exec command: operation='exec', resource='', args='mypod -- date'
 - Copy to pod: operation='cp', resource='', args='/tmp/foo_dir some-pod:/tmp/bar_dir'
 - Copy from pod: operation='cp', resource='', args='some-namespace/some-pod:/tmp/foo /tmp/bar'
 - Copy with container: operation='cp', resource='', args='/tmp/foo some-pod:/tmp/bar -c specific-container'`
@@ -306,7 +306,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type (usually 'pod' or empty for some operations)"),
+			mcp.Description("The resource type (usually 'pod' for logs, 'event' for events or '' for exec and cp)"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),

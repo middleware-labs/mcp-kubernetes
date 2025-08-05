@@ -206,6 +206,20 @@ func TestKubectlToolExecutor_BuildCommand(t *testing.T) {
 			args:           "-f deployment.yaml",
 			want:           "apply -f deployment.yaml",
 		},
+		{
+			name:           "exec command ignores resource parameter",
+			kubectlCommand: "exec",
+			resource:       "pod",
+			args:           "mypod -- date",
+			want:           "exec mypod -- date",
+		},
+		{
+			name:           "cp command ignores resource parameter",
+			kubectlCommand: "cp",
+			resource:       "",
+			args:           "/tmp/foo_dir some-pod:/tmp/bar_dir",
+			want:           "cp /tmp/foo_dir some-pod:/tmp/bar_dir",
+		},
 	}
 
 	for _, tt := range tests {
