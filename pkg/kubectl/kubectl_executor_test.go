@@ -220,6 +220,62 @@ func TestKubectlToolExecutor_BuildCommand(t *testing.T) {
 			args:           "/tmp/foo_dir some-pod:/tmp/bar_dir",
 			want:           "cp /tmp/foo_dir some-pod:/tmp/bar_dir",
 		},
+		{
+			name:           "events command with empty resource",
+			kubectlCommand: "events",
+			resource:       "",
+			args:           "--all-namespaces",
+			want:           "events --all-namespaces",
+		},
+		{
+			name:           "api-resources command with empty resource",
+			kubectlCommand: "api-resources",
+			resource:       "",
+			args:           "--namespaced=true",
+			want:           "api-resources --namespaced=true",
+		},
+		{
+			name:           "api-versions command with empty resource",
+			kubectlCommand: "api-versions",
+			resource:       "",
+			args:           "",
+			want:           "api-versions",
+		},
+		{
+			name:           "run command with empty resource",
+			kubectlCommand: "run",
+			resource:       "",
+			args:           "nginx --image=nginx",
+			want:           "run nginx --image=nginx",
+		},
+		{
+			name:           "diff command with empty resource",
+			kubectlCommand: "diff",
+			resource:       "",
+			args:           "-f deployment.yaml",
+			want:           "diff -f deployment.yaml",
+		},
+		{
+			name:           "logs command with empty resource",
+			kubectlCommand: "logs",
+			resource:       "",
+			args:           "nginx -c ruby-container",
+			want:           "logs nginx -c ruby-container",
+		},
+		{
+			name:           "logs command with selector",
+			kubectlCommand: "logs",
+			resource:       "",
+			args:           "-l app=nginx --all-containers=true",
+			want:           "logs -l app=nginx --all-containers=true",
+		},
+		{
+			name:           "top command with resource subcommand",
+			kubectlCommand: "top",
+			resource:       "pod",
+			args:           "",
+			want:           "top pod",
+		},
 	}
 
 	for _, tt := range tests {

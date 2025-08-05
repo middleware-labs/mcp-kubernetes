@@ -222,8 +222,18 @@ func (e *KubectlToolExecutor) buildCommand(kubectlCommand, resource, args string
 	// Standard case: command + resource + args
 	parts := []string{kubectlCommand}
 
-	// Add resource if not empty, except for exec and cp commands which pass resource info in args
-	if resource != "" && kubectlCommand != "exec" && kubectlCommand != "cp" {
+	// Skip the resource parameter for certain commands
+	skipResourceCommands := []string{"exec", "cp", "events", "cluster-info", "api-resources", "api-versions", "diff", "run", "logs"}
+	shouldSkipResource := false
+	for _, cmd := range skipResourceCommands {
+		if kubectlCommand == cmd {
+			shouldSkipResource = true
+			break
+		}
+	}
+
+	// Also skip resource if it's empty (file-based operations like create -f, apply -f, etc.)
+	if resource != "" && !shouldSkipResource {
 		parts = append(parts, resource)
 	}
 
