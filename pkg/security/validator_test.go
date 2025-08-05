@@ -136,7 +136,7 @@ func TestReadOperationsValidation(t *testing.T) {
 		{"cilium status", CommandTypeCilium, false},
 		{"cilium endpoint list", CommandTypeCilium, false}, // "endpoint" is in CiliumReadOperations
 		{"cilium install", CommandTypeCilium, true},
-		{"cilium hubble enable", CommandTypeCilium, true},
+		{"cilium hubble enable", CommandTypeCilium, false},
 		{"hubble status", CommandTypeHubble, false},
 		{"hubble observe", CommandTypeHubble, false},
 		{"hubble list nodes", CommandTypeHubble, false},

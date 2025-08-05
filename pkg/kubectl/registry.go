@@ -186,7 +186,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type (e.g., pods, deployments, services) or empty for file-based operations"),
+			mcp.Description("The resource type (e.g., pods, deployments, services) or empty string '' for file-based operations (create -f, apply -f, patch -f, replace -f, delete -f)"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
@@ -229,7 +229,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type for expose/scale/autoscale, subcommand for rollout, or empty for run"),
+			mcp.Description("The resource type for expose/scale/autoscale, subcommand for rollout, or empty string '' for run operation"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
@@ -285,11 +285,11 @@ Available operations:
 - cp: Copy files to/from containers
 
 Examples:
-- Logs for default container: operation='logs', resource='pod', args='nginx'
-- Logs for specific container: operation='logs', resource='pod', args='nginx -c ruby-container'
-- Logs with selector: operation='logs', resource='pod', args='-l app=nginx --all-containers=true'
-- Get events: operation='events', resource='events', args='--all-namespaces'
-- Get events namespace: operation='events', resource='events', args='-n default'
+- Logs for default container: operation='logs', resource='', args='nginx'
+- Logs for specific container: operation='logs', resource='', args='nginx -c ruby-container'
+- Logs with selector: operation='logs', resource='', args='-l app=nginx --all-containers=true'
+- Get events: operation='events', resource='', args='--all-namespaces'
+- Get events namespace: operation='events', resource='', args='-n default'
 - Top pods: operation='top', resource='pod', args=''
 - Top nodes: operation='top', resource='node', args=''
 - Top with containers: operation='top', resource='pod', args='POD_NAME --containers'
@@ -306,7 +306,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type (usually 'pod' for logs, 'event' for events or '' for exec and cp)"),
+			mcp.Description("The resource type: 'node'/'pod' for top, empty string '' for logs/events/exec/cp"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
@@ -345,7 +345,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("The resource type for explain operation, or empty for others"),
+			mcp.Description("The resource type for explain operation, or empty string '' for cluster-info/api-resources/api-versions"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
@@ -403,7 +403,7 @@ Examples:
 		),
 		mcp.WithString("resource",
 			mcp.Required(),
-			mcp.Description("Subcommand for auth/certificate operations, or empty for diff"),
+			mcp.Description("Subcommand for auth/certificate operations, or empty string '' for diff operation"),
 		),
 		mcp.WithString("args",
 			mcp.Required(),
