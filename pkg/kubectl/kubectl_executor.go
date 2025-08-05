@@ -222,8 +222,8 @@ func (e *KubectlToolExecutor) buildCommand(kubectlCommand, resource, args string
 	// Standard case: command + resource + args
 	parts := []string{kubectlCommand}
 
-	// Add resource if not empty
-	if resource != "" {
+	// Add resource if not empty, except for exec and cp commands which pass resource info in args
+	if resource != "" && kubectlCommand != "exec" && kubectlCommand != "cp" {
 		parts = append(parts, resource)
 	}
 
