@@ -293,7 +293,7 @@ Examples:
 - Top pods: operation='top', resource='pod', args=''
 - Top nodes: operation='top', resource='node', args=''
 - Top with containers: operation='top', resource='pod', args='POD_NAME --containers'
-- Exec command: operation='exec', resource='', args='mypod -- date'
+- Exec command: operation='exec', resource='', args='mypod -n NAMESPACE -- date'
 - Copy to pod: operation='cp', resource='', args='/tmp/foo_dir some-pod:/tmp/bar_dir'
 - Copy from pod: operation='cp', resource='', args='some-namespace/some-pod:/tmp/foo /tmp/bar'
 - Copy with container: operation='cp', resource='', args='/tmp/foo some-pod:/tmp/bar -c specific-container'`
