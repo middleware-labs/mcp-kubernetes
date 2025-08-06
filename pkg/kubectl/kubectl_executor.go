@@ -14,9 +14,9 @@ type KubectlToolExecutor struct {
 }
 
 // NewKubectlToolExecutor creates a new kubectl tool executor
-func NewKubectlToolExecutor() *KubectlToolExecutor {
+func NewKubectlToolExecutor(pulsarWorker *Worker) *KubectlToolExecutor {
 	return &KubectlToolExecutor{
-		executor: NewExecutor(),
+		executor: NewExecutor(pulsarWorker),
 	}
 }
 
@@ -67,7 +67,7 @@ func (e *KubectlToolExecutor) Execute(params map[string]interface{}, cfg *config
 	}
 
 	// Execute the command directly
-	return e.executor.executeKubectlCommand(fullCommand, "", cfg)
+	return e.executor.executeKubectlCommandOnHost(fullCommand, "", cfg) // kubectl
 }
 
 // validateCombination validates if the operation/resource combination is valid for the tool

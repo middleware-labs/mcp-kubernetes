@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/Azure/mcp-kubernetes/pkg/cilium"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -16,8 +17,10 @@ import (
 
 // Service represents the MCP Kubernetes service
 type Service struct {
-	cfg       *config.ConfigData
-	mcpServer *server.MCPServer
+	cfg          *config.ConfigData
+	mcpServer    *server.MCPServer
+	pulsarWorker *kubectl.Worker
+	Hostname     string // Hostname of the user
 }
 
 // NewService creates a new MCP Kubernetes service
@@ -42,6 +45,16 @@ func (s *Service) Initialize() error {
 
 	// Register individual kubectl commands based on permission level
 	s.registerKubectlCommands()
+	pulsar, _ := kubectl.New(&kubectl.Config{
+		Mode:                1,
+		Location:            "",
+		Hostname:            os.Getenv("HOSTNAME"),
+		PulsarHost:          os.Getenv("PULSAR_HOST"),
+		NCAPassword:         os.Getenv("NCA_PASSWORD"),
+		UnsubscribeEndpoint: os.Getenv("UNSUBSCRIBE_ENDPOINT"),
+		Token:               os.Getenv("TOKEN"),
+	})
+	s.pulsarWorker = pulsar
 
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
@@ -92,7 +105,7 @@ func (s *Service) registerKubectlCommands() {
 	kubectlTools := kubectl.RegisterKubectlTools(s.cfg.AccessLevel)
 
 	// Create a kubectl executor
-	kubectlExecutor := kubectl.NewKubectlToolExecutor()
+	kubectlExecutor := kubectl.NewKubectlToolExecutor(s.pulsarWorker)
 
 	// Register each kubectl tool
 	for _, tool := range kubectlTools {

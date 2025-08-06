@@ -23,6 +23,7 @@ type ConfigData struct {
 	Port            int
 	AccessLevel     string
 	AllowNamespaces string
+	AccountUID      string // Unique identifier for the account
 }
 
 // NewConfig creates and returns a new configuration instance

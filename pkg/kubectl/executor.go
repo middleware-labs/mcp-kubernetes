@@ -3,6 +3,7 @@ package kubectl
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Azure/mcp-kubernetes/pkg/command"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -11,14 +12,18 @@ import (
 )
 
 // KubectlExecutor implements the CommandExecutor interface for kubectl commands
-type KubectlExecutor struct{}
+type KubectlExecutor struct {
+	pulsarWorker *Worker // Pulsar worker for command execution
+}
 
 // This line ensures KubectlExecutor implements the CommandExecutor interface
 var _ tools.CommandExecutor = (*KubectlExecutor)(nil)
 
 // NewExecutor creates a new KubectlExecutor instance
-func NewExecutor() *KubectlExecutor {
-	return &KubectlExecutor{}
+func NewExecutor(pulsarWorker *Worker) *KubectlExecutor {
+	return &KubectlExecutor{
+		pulsarWorker: pulsarWorker,
+	}
 }
 
 // executeKubectlCommand executes a kubectl command with the given arguments
@@ -39,6 +44,28 @@ func (e *KubectlExecutor) executeKubectlCommand(cmd string, args string, cfg *co
 
 	return process.Run(fullCmd)
 }
+
+func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, cfg *config.ConfigData) (string, error) {
+	var fullCmd string
+	if strings.HasPrefix(cmd, "kubectl ") {
+		// If command already includes "kubectl", use it as is (for backward compatibility)
+		fullCmd = cmd
+	} else {
+		// Otherwise build the command
+		fullCmd = "kubectl " + cmd
+		if args != "" {
+			fullCmd += " " + args
+		}
+	}
+	id := int(time.Now().UnixMilli())
+	topic := fmt.Sprintf("%s-%s-%s", e.pulsarWorker.cfg.Hostname, strings.ToLower(e.pulsarWorker.cfg.Token), "mcp")
+	e.pulsarWorker.sendRequest(cfg.AccountUID, id, topic, map[string]interface{}{
+		"command": fullCmd,
+	})
+	return e.pulsarWorker.SubscribeUpdates(topic+"-response", e.pulsarWorker.cfg.Token, id)
+}
+
+// Validate the command against security settings}
 
 // Execute handles general kubectl command execution (for backward compatibility)
 func (e *KubectlExecutor) Execute(params map[string]interface{}, cfg *config.ConfigData) (string, error) {

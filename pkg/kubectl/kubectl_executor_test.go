@@ -9,7 +9,7 @@ import (
 )
 
 func TestKubectlToolExecutor_ValidateCombination(t *testing.T) {
-	executor := NewKubectlToolExecutor()
+	executor := NewKubectlToolExecutor(&Worker{})
 
 	tests := []struct {
 		name      string
@@ -155,7 +155,7 @@ func TestKubectlToolExecutor_ValidateCombination(t *testing.T) {
 }
 
 func TestKubectlToolExecutor_BuildCommand(t *testing.T) {
-	executor := NewKubectlToolExecutor()
+	executor := NewKubectlToolExecutor(&Worker{})
 
 	tests := []struct {
 		name           string
@@ -289,7 +289,7 @@ func TestKubectlToolExecutor_BuildCommand(t *testing.T) {
 }
 
 func TestKubectlToolExecutor_DetermineCommandCategory(t *testing.T) {
-	executor := NewKubectlToolExecutor()
+	executor := NewKubectlToolExecutor(&Worker{})
 
 	tests := []struct {
 		name         string
@@ -354,7 +354,7 @@ func TestKubectlToolExecutor_DetermineCommandCategory(t *testing.T) {
 }
 
 func TestKubectlToolExecutor_CheckAccessLevel(t *testing.T) {
-	executor := NewKubectlToolExecutor()
+	executor := NewKubectlToolExecutor(&Worker{})
 
 	tests := []struct {
 		name        string
@@ -510,7 +510,7 @@ func TestKubectlToolExecutor_Execute(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			executor := NewKubectlToolExecutor()
+			executor := NewKubectlToolExecutor(&Worker{})
 			cfg := &config.ConfigData{
 				AccessLevel: "readwrite",
 				SecurityConfig: &security.SecurityConfig{
