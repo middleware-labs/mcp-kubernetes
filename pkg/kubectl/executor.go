@@ -59,7 +59,7 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	}
 	id := int(time.Now().UnixMilli())
 	topic := fmt.Sprintf("%s-%s-%s", e.pulsarWorker.cfg.Hostname, strings.ToLower(e.pulsarWorker.cfg.Token), "mcp")
-	e.pulsarWorker.sendRequest(cfg.AccountUID, id, topic, map[string]interface{}{
+	e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
 	})
 	return e.pulsarWorker.SubscribeUpdates(topic+"-response", e.pulsarWorker.cfg.Token, id)

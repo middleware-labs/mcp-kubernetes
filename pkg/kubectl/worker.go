@@ -44,6 +44,7 @@ func (m Mode) String() string {
 type Config struct {
 	Mode                Mode
 	Location            string
+	AccountUID          string
 	Hostname            string
 	PulsarHost          string
 	UnsubscribeEndpoint string

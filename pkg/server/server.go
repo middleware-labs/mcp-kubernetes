@@ -48,6 +48,7 @@ func (s *Service) Initialize() error {
 	pulsar, _ := kubectl.New(&kubectl.Config{
 		Mode:                1,
 		Location:            "",
+		AccountUID:          os.Getenv("ACCOUNT_UID"),
 		Hostname:            os.Getenv("HOSTNAME"),
 		PulsarHost:          os.Getenv("PULSAR_HOST"),
 		NCAPassword:         os.Getenv("NCA_PASSWORD"),
