@@ -154,10 +154,9 @@ func (w *Worker) SubscribeUpdates(topic string, token string, id int) (string, e
 		}
 
 		var payloadType struct {
-			AccountUid string `json:"account_uid"`
-			RequestId  string `json:"request_id"`
-			Topic      string `json:"topic"`
-			Result     string `json:"result"`
+			AccountUid string                 `json:"account_uid"`
+			Id         int                    `json:"Id"`
+			Result     map[string]interface{} `json:"result"`
 		}
 
 		if msg == nil {
@@ -175,14 +174,15 @@ func (w *Worker) SubscribeUpdates(topic string, token string, id int) (string, e
 			return "", fmt.Errorf("failed to unmarshal payload: %w", err)
 		}
 
-		if payloadType.RequestId == fmt.Sprintf("%d", id) {
+		if payloadType.Id == id {
 			w.DeleteMessage(msg.Key)
 			err = w.consumer.Ack(context.Background(), msg)
 			if err != nil {
 				slog.Error("failed to ack the matched data msg", "err", err)
 				return "", fmt.Errorf("failed to ack the matched data msg: %w", err)
 			}
-			return payloadType.Result, nil
+			mapResult := payloadType.Result
+			return mapResult["stdout"].(string), nil
 		}
 
 		err = w.consumer.Ack(context.Background(), msg)
@@ -237,10 +237,12 @@ func (w *Worker) produceMessage(accountUid string,
 func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) {
 	idString := fmt.Sprintf("%d", id)
 	payloadMap := map[string]interface{}{
-		"account_uid": accountUid,
-		"request_id":  idString,
-		"topic":       topic,
-		"result":      payload,
+		"Not":        "",
+		"Action":     "mcp-k8s",
+		"Id":         id,
+		"AccountUID": accountUid,
+		"topic":      topic,
+		"result":     payload,
 	}
 	w.produceMessage(accountUid, topic, idString, payloadMap)
 }

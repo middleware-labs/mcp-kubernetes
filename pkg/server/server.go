@@ -44,10 +44,9 @@ func (s *Service) Initialize() error {
 	)
 
 	// Register individual kubectl commands based on permission level
-	s.registerKubectlCommands()
 	pulsar, _ := kubectl.New(&kubectl.Config{
 		Mode:                1,
-		Location:            "",
+		Location:            os.Getenv("HOSTNAME"),
 		AccountUID:          os.Getenv("ACCOUNT_UID"),
 		Hostname:            os.Getenv("HOSTNAME"),
 		PulsarHost:          os.Getenv("PULSAR_HOST"),
@@ -56,6 +55,7 @@ func (s *Service) Initialize() error {
 		Token:               os.Getenv("TOKEN"),
 	})
 	s.pulsarWorker = pulsar
+	s.registerKubectlCommands()
 
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {

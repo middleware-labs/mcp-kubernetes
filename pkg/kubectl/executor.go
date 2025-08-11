@@ -1,6 +1,7 @@
 package kubectl
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"strings"
 	"time"
@@ -58,11 +59,11 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 		}
 	}
 	id := int(time.Now().UnixMilli())
-	topic := fmt.Sprintf("%s-%s-%s", e.pulsarWorker.cfg.Hostname, strings.ToLower(e.pulsarWorker.cfg.Token), "mcp")
+	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
 	e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
 	})
-	return e.pulsarWorker.SubscribeUpdates(topic+"-response", e.pulsarWorker.cfg.Token, id)
+	return e.pulsarWorker.SubscribeUpdates(topic+"-unsubscribe", e.pulsarWorker.cfg.Token, id)
 }
 
 // Validate the command against security settings}
