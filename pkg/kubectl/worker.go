@@ -208,7 +208,7 @@ func (w *Worker) produceMessage(accountUid string,
 		Payload: payload,
 	}
 	str, _ := json.Marshal(pay)
-
+	slog.Info("producing message", slog.String("url", w.cfg.UnsubscribeEndpoint), slog.String("payload", string(str)))
 	url := strings.ReplaceAll(w.cfg.UnsubscribeEndpoint, "{ACC}", accountUid)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(str))
 	if err != nil {
@@ -237,12 +237,14 @@ func (w *Worker) produceMessage(accountUid string,
 func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) {
 	idString := fmt.Sprintf("%d", id)
 	payloadMap := map[string]interface{}{
-		"Not":        "",
-		"Action":     "mcp-k8s",
-		"Id":         id,
-		"AccountUID": accountUid,
-		"topic":      topic,
-		"result":     payload,
+		"Not":         "",
+		"Action":      "mcp-k8s",
+		"Id":          id,
+		"AccountUID":  accountUid,
+		"preview_id":  idString,
+		"account_uid": accountUid,
+		"topic":       topic,
+		"result":      payload,
 	}
 	w.produceMessage(accountUid, topic, idString, payloadMap)
 }
