@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/Azure/mcp-kubernetes/pkg/cilium"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -43,6 +44,15 @@ func (s *Service) Initialize() error {
 		server.WithRecovery(),
 	)
 
+	timeout := 60
+	var err error
+	if os.Getenv("TIMEOUT") != "" {
+		timeout, err = strconv.Atoi(os.Getenv("TIMEOUT"))
+		if err != nil {
+			timeout = 60
+		}
+	}
+
 	// Register individual kubectl commands based on permission level
 	pulsar, _ := kubectl.New(&kubectl.Config{
 		Mode:                1,
@@ -50,6 +60,7 @@ func (s *Service) Initialize() error {
 		AccountUID:          os.Getenv("ACCOUNT_UID"),
 		Hostname:            os.Getenv("HOSTNAME"),
 		PulsarHost:          os.Getenv("PULSAR_HOST"),
+		Timeout:             timeout,
 		NCAPassword:         os.Getenv("NCA_PASSWORD"),
 		UnsubscribeEndpoint: os.Getenv("UNSUBSCRIBE_ENDPOINT"),
 		Token:               os.Getenv("TOKEN"),

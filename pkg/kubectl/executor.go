@@ -60,10 +60,13 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	}
 	id := int(time.Now().UnixMilli())
 	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
-	e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
+	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
 	})
-	return e.pulsarWorker.SubscribeUpdates(topic+"-unsubscribe", e.pulsarWorker.cfg.Token, id)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %s", err.Error())
+	}
+	return e.pulsarWorker.SubscribeUpdates(topic+"-unsubscribe", e.pulsarWorker.cfg.Token, id, e.pulsarWorker.cfg.Timeout)
 }
 
 // Validate the command against security settings}

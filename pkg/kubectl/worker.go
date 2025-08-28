@@ -50,6 +50,7 @@ type Config struct {
 	UnsubscribeEndpoint string
 	NCAPassword         string
 	Token               string
+	Timeout             int
 	CaptureEndpoint     string
 }
 
@@ -103,9 +104,7 @@ func (w *Worker) SetMessage(key string, msg *ws.Msg) {
 	defer w.messagesLock.Unlock()
 	w.messages[key] = msg
 }
-func (w *Worker) SubscribeUpdates(topic string, token string, id int) (string, error) {
-	// instanceId := strings.ToLower(os.Getenv("HOSTNAME"))
-
+func (w *Worker) SubscribeUpdates(topic string, token string, id int, timeout int) (string, error) {
 	consumerName := "subscribe-" + w.cfg.Hostname + "-" + strconv.FormatInt(time.Now().UTC().Unix(), 10)
 	url := w.cfg.Hostname + "/consumer/persistent/public/default/" +
 		topic + "/" + consumerName + "?token=" + token
@@ -124,33 +123,29 @@ func (w *Worker) SubscribeUpdates(topic string, token string, id int) (string, e
 			"token":                      token,
 		})
 	if err != nil {
-		slog.Error("failed to subscribe",
-			slog.String("error", err.Error()))
-		timer := time.NewTimer(time.Second * 5)
-		<-timer.C
-		w.SubscribeUpdates(topic, token, id)
-		return "", err
+		return "", fmt.Errorf("failed to subscribe: %w", err)
 	}
+	defer w.consumer.Close()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout))
+	defer cancel()
+
+	slog.Info("waiting for messages", slog.String("topic", topic), slog.Int("id", id), slog.Int("timeout", timeout))
+
 	for {
 		msg, err := w.consumer.Receive(ctx)
 		if err != nil {
-			w.consumer.Close()
-
-			timer := time.NewTimer(time.Second * 5)
-			<-timer.C
-			w.SubscribeUpdates(topic, token, id)
-			return "", err
-		} else if msg.Payload == nil || len(msg.Payload) == 0 {
-			slog.Info("null message received", slog.String("msgId", msg.MsgId))
-			w.consumer.Ack(context.Background(), msg)
-			continue
+			// if timeout expired, exit gracefully
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				slog.Error("timeout reached", slog.String("topic", topic))
+				return "", fmt.Errorf("timeout reached after %ds", timeout)
+			}
+			return "", fmt.Errorf("failed to receive msg: %w", err)
 		}
 
-		_, ok := w.GetMessage(msg.Key)
-		if !ok {
-			w.SetMessage(msg.Key, msg)
+		if msg == nil || len(msg.Payload) == 0 {
+			_ = w.consumer.Ack(context.Background(), msg)
+			continue
 		}
 
 		var payloadType struct {
@@ -159,42 +154,27 @@ func (w *Worker) SubscribeUpdates(topic string, token string, id int) (string, e
 			Result     map[string]interface{} `json:"result"`
 		}
 
-		if msg == nil {
-			err = w.consumer.Ack(context.Background(), msg)
-			if err != nil {
-				slog.Error("failed to ack the msg", "err", err)
-				return "", err
-			}
+		if err := json.Unmarshal(msg.Payload, &payloadType); err != nil {
+			slog.Error("failed to unmarshal payload", "err", err)
+			_ = w.consumer.Ack(context.Background(), msg)
 			continue
 		}
 
-		err = json.Unmarshal(msg.Payload, &payloadType)
-		if err != nil {
-			slog.Error("Synthetics [preview] failed to unmarshal payload", "err", err)
-			return "", fmt.Errorf("failed to unmarshal payload: %w", err)
-		}
-
 		if payloadType.Id == id {
-			w.DeleteMessage(msg.Key)
-			err = w.consumer.Ack(context.Background(), msg)
-			if err != nil {
-				slog.Error("failed to ack the matched data msg", "err", err)
-				return "", fmt.Errorf("failed to ack the matched data msg: %w", err)
+			_ = w.consumer.Ack(context.Background(), msg)
+			if stdout, ok := payloadType.Result["stdout"].(string); ok {
+				return stdout, nil
 			}
-			mapResult := payloadType.Result
-			return mapResult["stdout"].(string), nil
+			return "", fmt.Errorf("stdout missing or invalid type")
 		}
 
-		err = w.consumer.Ack(context.Background(), msg)
-		if err != nil {
-			slog.Error("failed to ack the msg", "err", err)
-			return "", fmt.Errorf("failed to ack the msg: %w", err)
-		}
+		// ack unmatched messages
+		_ = w.consumer.Ack(context.Background(), msg)
 	}
 }
 
 func (w *Worker) produceMessage(accountUid string,
-	topic string, key string, payload map[string]interface{}) {
+	topic string, key string, payload map[string]interface{}) error {
 
 	type topicKeyPayload struct {
 		Topic   string
@@ -213,7 +193,7 @@ func (w *Worker) produceMessage(accountUid string,
 	req, err := http.NewRequest("POST", url, bytes.NewReader(str))
 	if err != nil {
 		slog.Error("failed to create request", slog.String("error", err.Error()))
-		return
+		return fmt.Errorf("failed to create request: %s", err.Error())
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -224,17 +204,19 @@ func (w *Worker) produceMessage(accountUid string,
 	re, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("failed to produce message", slog.String("error", err.Error()))
-		return
+		return fmt.Errorf("failed to produce message: %s", err.Error())
 	}
 
 	if re.StatusCode != 200 {
 		str, _ := io.ReadAll(re.Body)
 		slog.Error("failed to produce message", slog.String("response status", re.Status),
 			slog.String("url", url), slog.String("response", string(str)))
+		return fmt.Errorf("failed to produce message: %s", string(str))
 	}
+	return nil
 }
 
-func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) {
+func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) error {
 	idString := fmt.Sprintf("%d", id)
 	payloadMap := map[string]interface{}{
 		"Not":         "",
@@ -246,5 +228,5 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 		"topic":       topic,
 		"result":      payload,
 	}
-	w.produceMessage(accountUid, topic, idString, payloadMap)
+	return w.produceMessage(accountUid, topic, idString, payloadMap)
 }
