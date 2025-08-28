@@ -62,6 +62,7 @@ type Worker struct {
 	consumer     ws.Consumer
 	messages     map[string]*ws.Msg
 	messagesLock sync.Mutex
+	pending      sync.Map
 }
 
 // New creates a new worker
@@ -171,6 +172,55 @@ func (w *Worker) SubscribeUpdates(topic string, token string, id int, timeout in
 		// ack unmatched messages
 		_ = w.consumer.Ack(context.Background(), msg)
 	}
+}
+
+func (w *Worker) StartSubscriber(topic, token string) error {
+	consumer, err := w.pulsarClient.Consumer(
+		"persistent/public/default/"+topic,
+		"subscribe",
+		ws.Params{
+			"subscriptionType": "Shared",
+			"token":            token,
+		})
+	if err != nil {
+		return err
+	}
+	w.consumer = consumer
+	slog.Info("started subscriber", "topic", topic)
+	go func() {
+		for {
+			msg, err := consumer.Receive(context.Background())
+			if err != nil {
+				slog.Error("consumer receive error", "err", err)
+				continue
+			}
+
+			var payload struct {
+				Id     int                    `json:"Id"`
+				Result map[string]interface{} `json:"result"`
+			}
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				consumer.Ack(context.Background(), msg)
+				continue
+			}
+
+			if chAny, ok := w.pending.Load(payload.Id); ok {
+				if ch, ok := chAny.(chan string); ok {
+					if stdout, ok := payload.Result["stdout"].(string); ok {
+						slog.Info("received response", slog.Int("id", payload.Id), slog.String("stdout", stdout))
+						ch <- stdout
+					} else {
+						ch <- ""
+					}
+					close(ch)
+				}
+				w.pending.Delete(payload.Id)
+			}
+
+			consumer.Ack(context.Background(), msg)
+		}
+	}()
+	return nil
 }
 
 func (w *Worker) produceMessage(accountUid string,

@@ -59,6 +59,8 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 		}
 	}
 	id := int(time.Now().UnixMilli())
+	respCh := make(chan string, 1)
+	e.pulsarWorker.pending.Store(id, respCh)
 	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
 	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
@@ -66,7 +68,14 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %s", err.Error())
 	}
-	return e.pulsarWorker.SubscribeUpdates(topic+"-unsubscribe", e.pulsarWorker.cfg.Token, id, e.pulsarWorker.cfg.Timeout)
+
+	select {
+	case res := <-respCh:
+		return res, nil
+	case <-time.After(time.Second * time.Duration(e.pulsarWorker.cfg.Timeout)):
+		e.pulsarWorker.pending.Delete(id)
+		return "", fmt.Errorf("timeout waiting for response")
+	}
 }
 
 // Validate the command against security settings}

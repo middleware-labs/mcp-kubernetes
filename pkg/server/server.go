@@ -1,10 +1,12 @@
 package server
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/Azure/mcp-kubernetes/pkg/cilium"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -68,6 +70,10 @@ func (s *Service) Initialize() error {
 	s.pulsarWorker = pulsar
 	s.registerKubectlCommands()
 
+	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
+	if err := s.pulsarWorker.StartSubscriber(topic+"-unsubscribe", os.Getenv("TOKEN")); err != nil {
+		log.Fatalf("failed to start subscriber: %v", err)
+	}
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
 		helmTool := helm.RegisterHelm()
