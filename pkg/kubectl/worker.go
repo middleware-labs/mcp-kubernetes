@@ -207,7 +207,7 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 			if chAny, ok := w.pending.Load(payload.Id); ok {
 				if ch, ok := chAny.(chan string); ok {
 					if stdout, ok := payload.Result["stdout"].(string); ok {
-						slog.Info("received response", slog.Int("id", payload.Id), slog.String("stdout", stdout))
+						slog.Info("received response", slog.Int("id", payload.Id))
 						ch <- stdout
 					} else {
 						ch <- ""
