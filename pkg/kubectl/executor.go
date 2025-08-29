@@ -1,8 +1,10 @@
 package kubectl
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Azure/mcp-kubernetes/pkg/command"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -11,14 +13,18 @@ import (
 )
 
 // KubectlExecutor implements the CommandExecutor interface for kubectl commands
-type KubectlExecutor struct{}
+type KubectlExecutor struct {
+	pulsarWorker *Worker // Pulsar worker for command execution
+}
 
 // This line ensures KubectlExecutor implements the CommandExecutor interface
 var _ tools.CommandExecutor = (*KubectlExecutor)(nil)
 
 // NewExecutor creates a new KubectlExecutor instance
-func NewExecutor() *KubectlExecutor {
-	return &KubectlExecutor{}
+func NewExecutor(pulsarWorker *Worker) *KubectlExecutor {
+	return &KubectlExecutor{
+		pulsarWorker: pulsarWorker,
+	}
 }
 
 // executeKubectlCommand executes a kubectl command with the given arguments
@@ -39,6 +45,40 @@ func (e *KubectlExecutor) executeKubectlCommand(cmd string, args string, cfg *co
 
 	return process.Run(fullCmd)
 }
+
+func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, cfg *config.ConfigData) (string, error) {
+	var fullCmd string
+	if strings.HasPrefix(cmd, "kubectl ") {
+		// If command already includes "kubectl", use it as is (for backward compatibility)
+		fullCmd = cmd
+	} else {
+		// Otherwise build the command
+		fullCmd = "kubectl " + cmd
+		if args != "" {
+			fullCmd += " " + args
+		}
+	}
+	id := int(time.Now().UnixMilli())
+	respCh := make(chan string, 1)
+	e.pulsarWorker.pending.Store(id, respCh)
+	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
+	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
+		"command": fullCmd,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %s", err.Error())
+	}
+
+	select {
+	case res := <-respCh:
+		return res, nil
+	case <-time.After(time.Second * time.Duration(e.pulsarWorker.cfg.Timeout)):
+		e.pulsarWorker.pending.Delete(id)
+		return "", fmt.Errorf("timeout waiting for response")
+	}
+}
+
+// Validate the command against security settings}
 
 // Execute handles general kubectl command execution (for backward compatibility)
 func (e *KubectlExecutor) Execute(params map[string]interface{}, cfg *config.ConfigData) (string, error) {

@@ -1,8 +1,12 @@
 package server
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/Azure/mcp-kubernetes/pkg/cilium"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -16,8 +20,10 @@ import (
 
 // Service represents the MCP Kubernetes service
 type Service struct {
-	cfg       *config.ConfigData
-	mcpServer *server.MCPServer
+	cfg          *config.ConfigData
+	mcpServer    *server.MCPServer
+	pulsarWorker *kubectl.Worker
+	Hostname     string // Hostname of the user
 }
 
 // NewService creates a new MCP Kubernetes service
@@ -40,9 +46,34 @@ func (s *Service) Initialize() error {
 		server.WithRecovery(),
 	)
 
+	timeout := 60
+	var err error
+	if os.Getenv("TIMEOUT") != "" {
+		timeout, err = strconv.Atoi(os.Getenv("TIMEOUT"))
+		if err != nil {
+			timeout = 60
+		}
+	}
+
 	// Register individual kubectl commands based on permission level
+	pulsar, _ := kubectl.New(&kubectl.Config{
+		Mode:                1,
+		Location:            os.Getenv("HOSTNAME"),
+		AccountUID:          os.Getenv("ACCOUNT_UID"),
+		Hostname:            os.Getenv("HOSTNAME"),
+		PulsarHost:          os.Getenv("PULSAR_HOST"),
+		Timeout:             timeout,
+		NCAPassword:         os.Getenv("NCA_PASSWORD"),
+		UnsubscribeEndpoint: os.Getenv("UNSUBSCRIBE_ENDPOINT"),
+		Token:               os.Getenv("TOKEN"),
+	})
+	s.pulsarWorker = pulsar
 	s.registerKubectlCommands()
 
+	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
+	if err := s.pulsarWorker.StartSubscriber(topic+"-unsubscribe", os.Getenv("TOKEN")); err != nil {
+		log.Fatalf("failed to start subscriber: %v", err)
+	}
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
 		helmTool := helm.RegisterHelm()
@@ -92,7 +123,7 @@ func (s *Service) registerKubectlCommands() {
 	kubectlTools := kubectl.RegisterKubectlTools(s.cfg.AccessLevel)
 
 	// Create a kubectl executor
-	kubectlExecutor := kubectl.NewKubectlToolExecutor()
+	kubectlExecutor := kubectl.NewKubectlToolExecutor(s.pulsarWorker)
 
 	// Register each kubectl tool
 	for _, tool := range kubectlTools {

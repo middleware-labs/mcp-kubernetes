@@ -17,13 +17,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create validator and run validation checks
-	v := config.NewValidator(cfg)
-	if !v.Validate() {
-		fmt.Fprintln(os.Stderr, "Validation failed:")
-		v.PrintErrors()
-		os.Exit(1)
-	}
+	// // Create validator and run validation checks
+	// v := config.NewValidator(cfg)
+	// if !v.Validate() {
+	// 	fmt.Fprintln(os.Stderr, "Validation failed:")
+	// 	v.PrintErrors()
+	// 	os.Exit(1)
+	// }
 
 	// Create and initialize the service
 	service := server.NewService(cfg)
