@@ -70,7 +70,7 @@ func (s *Service) Initialize() error {
 	s.pulsarWorker = pulsar
 	s.registerKubectlCommands()
 
-	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
+	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
 	if err := s.pulsarWorker.StartSubscriber(topic+"-unsubscribe", os.Getenv("TOKEN")); err != nil {
 		log.Fatalf("failed to start subscriber: %v", err)
 	}

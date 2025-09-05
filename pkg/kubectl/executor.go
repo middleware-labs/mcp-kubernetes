@@ -61,7 +61,7 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	id := int(time.Now().UnixMilli())
 	respCh := make(chan string, 1)
 	e.pulsarWorker.pending.Store(id, respCh)
-	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
+	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
 	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
 	})

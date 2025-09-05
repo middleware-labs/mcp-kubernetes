@@ -9,10 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"log/slog"
 
@@ -105,74 +103,6 @@ func (w *Worker) SetMessage(key string, msg *ws.Msg) {
 	defer w.messagesLock.Unlock()
 	w.messages[key] = msg
 }
-func (w *Worker) SubscribeUpdates(topic string, token string, id int, timeout int) (string, error) {
-	consumerName := "subscribe-" + w.cfg.Hostname + "-" + strconv.FormatInt(time.Now().UTC().Unix(), 10)
-	url := w.cfg.Hostname + "/consumer/persistent/public/default/" +
-		topic + "/" + consumerName + "?token=" + token
-	slog.Info("subscribing to topic", slog.String("url", url),
-		slog.String("consumer", consumerName), slog.String("token", token))
-
-	var err error
-	w.consumer, err = w.pulsarClient.Consumer("persistent/public/default/"+topic,
-		"subscribe", ws.Params{
-			"subscriptionType":           "Shared",
-			"ackTimeoutMillis":           strconv.Itoa(60 * 60 * 1000),
-			"consumerName":               consumerName,
-			"negativeAckRedeliveryDelay": "0",
-			"pullMode":                   "false",
-			"receiverQueueSize":          "500000",
-			"token":                      token,
-		})
-	if err != nil {
-		return "", fmt.Errorf("failed to subscribe: %w", err)
-	}
-	defer w.consumer.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout))
-	defer cancel()
-
-	slog.Info("waiting for messages", slog.String("topic", topic), slog.Int("id", id), slog.Int("timeout", timeout))
-
-	for {
-		msg, err := w.consumer.Receive(ctx)
-		if err != nil {
-			// if timeout expired, exit gracefully
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				slog.Error("timeout reached", slog.String("topic", topic))
-				return "", fmt.Errorf("timeout reached after %ds", timeout)
-			}
-			return "", fmt.Errorf("failed to receive msg: %w", err)
-		}
-
-		if msg == nil || len(msg.Payload) == 0 {
-			_ = w.consumer.Ack(context.Background(), msg)
-			continue
-		}
-
-		var payloadType struct {
-			AccountUid string                 `json:"account_uid"`
-			Id         int                    `json:"Id"`
-			Result     map[string]interface{} `json:"result"`
-		}
-
-		if err := json.Unmarshal(msg.Payload, &payloadType); err != nil {
-			slog.Error("failed to unmarshal payload", "err", err)
-			_ = w.consumer.Ack(context.Background(), msg)
-			continue
-		}
-
-		if payloadType.Id == id {
-			_ = w.consumer.Ack(context.Background(), msg)
-			if stdout, ok := payloadType.Result["stdout"].(string); ok {
-				return stdout, nil
-			}
-			return "", fmt.Errorf("stdout missing or invalid type")
-		}
-
-		// ack unmatched messages
-		_ = w.consumer.Ack(context.Background(), msg)
-	}
-}
 
 func (w *Worker) StartSubscriber(topic, token string) error {
 	consumer, err := w.pulsarClient.Consumer(
@@ -215,9 +145,9 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 					close(ch)
 				}
 				w.pending.Delete(payload.Id)
+				consumer.Ack(context.Background(), msg)
 			}
-
-			consumer.Ack(context.Background(), msg)
+			consumer.Nack(context.Background(), msg)
 		}
 	}()
 	return nil
