@@ -133,21 +133,21 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 				consumer.Ack(context.Background(), msg)
 				continue
 			}
-
-			if chAny, ok := w.pending.Load(payload.Id); ok {
-				if ch, ok := chAny.(chan string); ok {
+			slog.Info("received message", slog.Any("payload", payload), slog.Int("id", payload.Id))
+			if prAny, ok := w.pending.Load(payload.Id); ok {
+				if pr, ok := prAny.(*PendingRequest); ok {
 					if stdout, ok := payload.Result["stdout"].(string); ok {
 						slog.Info("received response", slog.Int("id", payload.Id))
-						ch <- stdout
+						pr.Complete(stdout, nil)
 					} else {
-						ch <- ""
+						pr.Complete("", fmt.Errorf("invalid response format"))
 					}
-					close(ch)
 				}
 				w.pending.Delete(payload.Id)
 				consumer.Ack(context.Background(), msg)
+			} else {
+				consumer.Nack(context.Background(), msg)
 			}
-			consumer.Nack(context.Background(), msg)
 		}
 	}()
 	return nil
