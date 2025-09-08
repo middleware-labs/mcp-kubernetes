@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Azure/mcp-kubernetes/pkg/cilium"
 	"github.com/Azure/mcp-kubernetes/pkg/config"
@@ -55,6 +56,11 @@ func (s *Service) Initialize() error {
 		}
 	}
 
+	fingerprint := strconv.FormatInt(time.Now().UnixMilli(), 10)
+	if os.Getenv("FINGERPRINT") != "" {
+		fingerprint = os.Getenv("FINGERPRINT")
+	}
+
 	// Register individual kubectl commands based on permission level
 	pulsar, _ := kubectl.New(&kubectl.Config{
 		Mode:                1,
@@ -66,12 +72,13 @@ func (s *Service) Initialize() error {
 		NCAPassword:         os.Getenv("NCA_PASSWORD"),
 		UnsubscribeEndpoint: os.Getenv("UNSUBSCRIBE_ENDPOINT"),
 		Token:               os.Getenv("TOKEN"),
+		Fingerprint:         fingerprint,
 	})
 	s.pulsarWorker = pulsar
 	s.registerKubectlCommands()
 
 	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
-	if err := s.pulsarWorker.StartSubscriber(topic+"-unsubscribe", os.Getenv("TOKEN")); err != nil {
+	if err := s.pulsarWorker.StartSubscriber(topic + "-unsubscribe"); err != nil {
 		log.Fatalf("failed to start subscriber: %v", err)
 	}
 	// Register additional tools

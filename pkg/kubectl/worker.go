@@ -50,6 +50,7 @@ type Config struct {
 	Token               string
 	Timeout             int
 	CaptureEndpoint     string
+	Fingerprint         string
 }
 
 // Worker is the main worker struct
@@ -104,13 +105,13 @@ func (w *Worker) SetMessage(key string, msg *ws.Msg) {
 	w.messages[key] = msg
 }
 
-func (w *Worker) StartSubscriber(topic, token string) error {
+func (w *Worker) StartSubscriber(topic string) error {
 	consumer, err := w.pulsarClient.Consumer(
 		"persistent/public/default/"+topic,
-		"subscribe",
+		`subscribe-`+w.cfg.Fingerprint,
 		ws.Params{
 			"subscriptionType": "Shared",
-			"token":            token,
+			"token":            w.cfg.Token,
 		})
 	if err != nil {
 		return err
@@ -148,6 +149,7 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 				consumer.Ack(context.Background(), msg)
 				continue
 			}
+			consumer.Nack(context.Background(), msg)
 		}
 	}() // -unsubscribe
 	return nil
