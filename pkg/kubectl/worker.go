@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"log/slog"
 
@@ -106,24 +107,43 @@ func (w *Worker) SetMessage(key string, msg *ws.Msg) {
 }
 
 func (w *Worker) StartSubscriber(topic string) error {
+	return w.startSubscriberWithRetry(topic, 0)
+}
+
+func (w *Worker) startSubscriberWithRetry(topic string, attempt int) error {
 	consumer, err := w.pulsarClient.Consumer(
 		"persistent/public/default/"+topic,
-		`subscribe-`+w.cfg.Fingerprint,
+		"subscribe-"+w.cfg.Fingerprint,
 		ws.Params{
 			"subscriptionType": "Shared",
 			"token":            w.cfg.Token,
 		})
 	if err != nil {
-		return err
+		backoff := time.Second * time.Duration(1<<attempt) // exponential backoff
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
+		}
+		slog.Error("failed to create consumer, retrying...",
+			"err", err, "attempt", attempt, "backoff", backoff)
+
+		time.Sleep(backoff)
+		return w.startSubscriberWithRetry(topic, attempt+1)
 	}
+
 	w.consumer = consumer
 	slog.Info("started subscriber", "topic", topic)
+
 	go func() {
 		for {
-			msg, err := consumer.Receive(context.Background())
+			ctx := context.Background()
+			msg, err := consumer.Receive(ctx)
 			if err != nil {
 				slog.Error("consumer receive error", "err", err)
-				continue
+				consumer.Close()
+
+				// reconnect (restart fresh)
+				_ = w.startSubscriberWithRetry(topic, 0)
+				return
 			}
 
 			var payload struct {
@@ -131,10 +151,10 @@ func (w *Worker) StartSubscriber(topic string) error {
 				Result map[string]interface{} `json:"result"`
 			}
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-				consumer.Ack(context.Background(), msg)
+				w.retryAck(ctx, consumer, msg)
 				continue
 			}
-			// W2 ->
+
 			if chAny, ok := w.pending.Load(payload.Id); ok {
 				if ch, ok := chAny.(chan string); ok {
 					if stdout, ok := payload.Result["stdout"].(string); ok {
@@ -146,13 +166,37 @@ func (w *Worker) StartSubscriber(topic string) error {
 					close(ch)
 				}
 				w.pending.Delete(payload.Id)
-				consumer.Ack(context.Background(), msg)
+				w.retryAck(ctx, consumer, msg)
 				continue
 			}
-			consumer.Nack(context.Background(), msg)
+
+			w.retryNack(ctx, consumer, msg)
 		}
-	}() // -unsubscribe
+	}()
+
 	return nil
+}
+
+func (w *Worker) retryAck(ctx context.Context, consumer ws.Consumer, msg *ws.Msg) {
+	for {
+		if err := consumer.Ack(ctx, msg); err != nil {
+			slog.Error("ack failed, retrying in 1s", "err", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return
+	}
+}
+
+func (w *Worker) retryNack(ctx context.Context, consumer ws.Consumer, msg *ws.Msg) {
+	for {
+		if err := consumer.Nack(ctx, msg); err != nil {
+			slog.Error("nack failed, retrying in 1s", "err", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return
+	}
 }
 
 func (w *Worker) produceMessage(accountUid string,
