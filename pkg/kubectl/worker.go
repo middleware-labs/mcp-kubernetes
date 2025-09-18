@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +51,7 @@ type Config struct {
 	Token               string
 	Timeout             int
 	CaptureEndpoint     string
+	Fingerprint         string
 }
 
 // Worker is the main worker struct
@@ -105,94 +105,45 @@ func (w *Worker) SetMessage(key string, msg *ws.Msg) {
 	defer w.messagesLock.Unlock()
 	w.messages[key] = msg
 }
-func (w *Worker) SubscribeUpdates(topic string, token string, id int, timeout int) (string, error) {
-	consumerName := "subscribe-" + w.cfg.Hostname + "-" + strconv.FormatInt(time.Now().UTC().Unix(), 10)
-	url := w.cfg.Hostname + "/consumer/persistent/public/default/" +
-		topic + "/" + consumerName + "?token=" + token
-	slog.Info("subscribing to topic", slog.String("url", url),
-		slog.String("consumer", consumerName), slog.String("token", token))
 
-	var err error
-	w.consumer, err = w.pulsarClient.Consumer("persistent/public/default/"+topic,
-		"subscribe", ws.Params{
-			"subscriptionType":           "Shared",
-			"ackTimeoutMillis":           strconv.Itoa(60 * 60 * 1000),
-			"consumerName":               consumerName,
-			"negativeAckRedeliveryDelay": "0",
-			"pullMode":                   "false",
-			"receiverQueueSize":          "500000",
-			"token":                      token,
-		})
-	if err != nil {
-		return "", fmt.Errorf("failed to subscribe: %w", err)
-	}
-	defer w.consumer.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(timeout))
-	defer cancel()
-
-	slog.Info("waiting for messages", slog.String("topic", topic), slog.Int("id", id), slog.Int("timeout", timeout))
-
-	for {
-		msg, err := w.consumer.Receive(ctx)
-		if err != nil {
-			// if timeout expired, exit gracefully
-			if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				slog.Error("timeout reached", slog.String("topic", topic))
-				return "", fmt.Errorf("timeout reached after %ds", timeout)
-			}
-			return "", fmt.Errorf("failed to receive msg: %w", err)
-		}
-
-		if msg == nil || len(msg.Payload) == 0 {
-			_ = w.consumer.Ack(context.Background(), msg)
-			continue
-		}
-
-		var payloadType struct {
-			AccountUid string                 `json:"account_uid"`
-			Id         int                    `json:"Id"`
-			Result     map[string]interface{} `json:"result"`
-		}
-
-		if err := json.Unmarshal(msg.Payload, &payloadType); err != nil {
-			slog.Error("failed to unmarshal payload", "err", err)
-			_ = w.consumer.Ack(context.Background(), msg)
-			continue
-		}
-
-		if payloadType.Id == id {
-			_ = w.consumer.Ack(context.Background(), msg)
-			if stdout, ok := payloadType.Result["stdout"].(string); ok {
-				return stdout, nil
-			}
-			return "", fmt.Errorf("stdout missing or invalid type")
-		}
-
-		// ack unmatched messages
-		_ = w.consumer.Ack(context.Background(), msg)
-	}
+func (w *Worker) StartSubscriber(topic string) error {
+	return w.startSubscriberWithRetry(topic, 0)
 }
 
-func (w *Worker) StartSubscriber(topic, token string) error {
+func (w *Worker) startSubscriberWithRetry(topic string, attempt int) error {
 	consumer, err := w.pulsarClient.Consumer(
 		"persistent/public/default/"+topic,
-		"subscribe",
+		"subscribe-"+w.cfg.Fingerprint,
 		ws.Params{
 			"subscriptionType": "Shared",
-			"token":            token,
+			"token":            w.cfg.Token,
 		})
 	if err != nil {
-		return err
+		backoff := time.Second * time.Duration(1<<attempt) // exponential backoff
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
+		}
+		slog.Error("failed to create consumer, retrying...",
+			"err", err, "attempt", attempt, "backoff", backoff)
+
+		time.Sleep(backoff)
+		return w.startSubscriberWithRetry(topic, attempt+1)
 	}
+
 	w.consumer = consumer
 	slog.Info("started subscriber", "topic", topic)
+
 	go func() {
 		for {
-			msg, err := consumer.Receive(context.Background())
+			ctx := context.Background()
+			msg, err := consumer.Receive(ctx)
 			if err != nil {
 				slog.Error("consumer receive error", "err", err)
-				continue
+				consumer.Close()
+
+				// reconnect (restart fresh)
+				_ = w.startSubscriberWithRetry(topic, 0)
+				return
 			}
 
 			var payload struct {
@@ -200,7 +151,7 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 				Result map[string]interface{} `json:"result"`
 			}
 			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
-				consumer.Ack(context.Background(), msg)
+				w.retryAck(ctx, consumer, msg)
 				continue
 			}
 
@@ -215,12 +166,37 @@ func (w *Worker) StartSubscriber(topic, token string) error {
 					close(ch)
 				}
 				w.pending.Delete(payload.Id)
+				w.retryAck(ctx, consumer, msg)
+				continue
 			}
 
-			consumer.Ack(context.Background(), msg)
+			w.retryNack(ctx, consumer, msg)
 		}
 	}()
+
 	return nil
+}
+
+func (w *Worker) retryAck(ctx context.Context, consumer ws.Consumer, msg *ws.Msg) {
+	for {
+		if err := consumer.Ack(ctx, msg); err != nil {
+			slog.Error("ack failed, retrying in 1s", "err", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return
+	}
+}
+
+func (w *Worker) retryNack(ctx context.Context, consumer ws.Consumer, msg *ws.Msg) {
+	for {
+		if err := consumer.Nack(ctx, msg); err != nil {
+			slog.Error("nack failed, retrying in 1s", "err", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		return
+	}
 }
 
 func (w *Worker) produceMessage(accountUid string,

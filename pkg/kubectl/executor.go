@@ -3,6 +3,7 @@ package kubectl
 import (
 	"crypto/sha1"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -61,7 +62,7 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	id := int(time.Now().UnixMilli())
 	respCh := make(chan string, 1)
 	e.pulsarWorker.pending.Store(id, respCh)
-	topic := fmt.Sprintf("agent-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
+	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
 	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": fullCmd,
 	})
@@ -69,13 +70,19 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 		return "", fmt.Errorf("failed to send request: %s", err.Error())
 	}
 
+	slog.Info("waiting for response", "id", id, "topic", topic)
+
+	var res string
 	select {
-	case res := <-respCh:
-		return res, nil
+	case res = <-respCh:
+		slog.Info("got message", "id", id, "topic", topic)
 	case <-time.After(time.Second * time.Duration(e.pulsarWorker.cfg.Timeout)):
 		e.pulsarWorker.pending.Delete(id)
+		slog.Info("timeout", "id", id, "topic", topic)
 		return "", fmt.Errorf("timeout waiting for response")
 	}
+	slog.Info("waiting completed", "id", id, "topic", topic)
+	return res, nil
 }
 
 // Validate the command against security settings}
