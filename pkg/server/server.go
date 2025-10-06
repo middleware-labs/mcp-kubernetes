@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/mcp-kubernetes/pkg/helm"
 	"github.com/Azure/mcp-kubernetes/pkg/hubble"
 	"github.com/Azure/mcp-kubernetes/pkg/kubectl"
+	"github.com/Azure/mcp-kubernetes/pkg/security"
 	"github.com/Azure/mcp-kubernetes/pkg/tools"
 	"github.com/Azure/mcp-kubernetes/pkg/version"
 	"github.com/mark3labs/mcp-go/server"
@@ -75,12 +76,52 @@ func (s *Service) Initialize() error {
 		Fingerprint:         fingerprint,
 	})
 	s.pulsarWorker = pulsar
-	s.registerKubectlCommands()
+
+	// print the pulsar all configs
+	fmt.Printf("Pulsar Configs: Mode=%d, Location=%s, AccountUID=%s, Hostname=%s, PulsarHost=%s, Timeout=%d, NCAPassword=%s, UnsubscribeEndpoint=%s, Token=%s, Fingerprint=%s\n",
+		1,
+		os.Getenv("HOSTNAME"),
+		os.Getenv("ACCOUNT_UID"),
+		os.Getenv("HOSTNAME"),
+		os.Getenv("PULSAR_HOST"),
+		timeout,
+		os.Getenv("NCA_PASSWORD"),
+		os.Getenv("UNSUBSCRIBE_ENDPOINT"),
+	)
 
 	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
 	if err := s.pulsarWorker.StartSubscriber(topic + "-unsubscribe"); err != nil {
 		log.Fatalf("failed to start subscriber: %v", err)
 	}
+
+	// Validate permissions via cluster role check if enabled
+	if s.cfg.ValidateClusterRole && (s.cfg.AccessLevel == "admin" || s.cfg.AccessLevel == "readwrite") {
+		log.Printf("Validating permissions by checking for mw-opsai-cluster-role...")
+
+		// Wait a bit for subscriber to be ready
+		time.Sleep(2 * time.Second)
+
+		hasAdminRole, err := s.pulsarWorker.CheckClusterRolePermission(timeout)
+		if err != nil {
+			// If validation fails (timeout, error, etc.), downgrade to readonly for safety
+			log.Printf("Warning: Failed to validate cluster role: %v", err)
+			log.Printf("Downgrading from '%s' to 'readonly' for safety", s.cfg.AccessLevel)
+			s.cfg.AccessLevel = "readonly"
+			s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
+		} else if !hasAdminRole {
+			// Cluster role not found, downgrade to readonly
+			log.Printf("mw-opsai-cluster-role not found, downgrading from '%s' to 'readonly'", s.cfg.AccessLevel)
+			s.cfg.AccessLevel = "readonly"
+			s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
+		} else {
+			// Cluster role found, use requested access level
+			log.Printf("mw-opsai-cluster-role found, using requested access level: %s", s.cfg.AccessLevel)
+		}
+	}
+
+	// Register kubectl commands AFTER validation (so tools are filtered correctly)
+	s.registerKubectlCommands()
+
 	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
 		helmTool := helm.RegisterHelm()

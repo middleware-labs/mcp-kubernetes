@@ -256,3 +256,44 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 	}
 	return w.produceMessage(accountUid, topic, idString, payloadMap)
 }
+
+// CheckClusterRolePermission validates if mw-opsai-cluster-role exists
+// Returns true if the role exists (admin/write permission), false otherwise (readonly)
+func (w *Worker) CheckClusterRolePermission(timeout int) (bool, error) {
+	cmd := "kubectl get clusterroles"
+
+	id := int(time.Now().UnixMilli())
+	respCh := make(chan string, 1)
+	w.pending.Store(id, respCh)
+
+	topic := fmt.Sprintf("mcp-%s-%x",
+		strings.ToLower(w.cfg.Token),
+		sha1.Sum([]byte(strings.ToLower(w.cfg.Location))))
+
+	err := w.sendRequest(w.cfg.AccountUID, id, topic, map[string]interface{}{
+		"command": cmd,
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to send cluster role check: %s", err.Error())
+	}
+
+	slog.Info("checking for mw-opsai-cluster-role", "id", id, "topic", topic)
+
+	var res string
+	select {
+	case res = <-respCh:
+		slog.Info("received cluster roles response", "id", id)
+		// Check if mw-opsai-cluster-role exists in the output
+		if strings.Contains(res, "mw-opsai-cluster-role") {
+			slog.Info("mw-opsai-cluster-role found - admin/write permission available")
+			return true, nil
+		}
+		slog.Info("mw-opsai-cluster-role not found - using readonly permission")
+		return false, nil
+
+	case <-time.After(time.Second * time.Duration(timeout)):
+		w.pending.Delete(id)
+		slog.Error("timeout checking cluster roles", "id", id, "topic", topic)
+		return false, fmt.Errorf("timeout checking cluster roles")
+	}
+}
