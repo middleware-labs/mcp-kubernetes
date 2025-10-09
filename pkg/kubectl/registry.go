@@ -47,6 +47,7 @@ func RegisterKubectlTools(accessLevel string) []mcp.Tool {
 		{creator: toolCreatorSimple(createDiagnosticsTool), minAccess: AccessLevelReadOnly},
 		{creator: toolCreatorSimple(createClusterTool), minAccess: AccessLevelReadOnly},
 		{creator: toolCreator(createConfigTool), minAccess: AccessLevelReadOnly, readOnlyMode: true},
+		{creator: toolCreatorSimple(createCheckPermissionsTool), minAccess: AccessLevelReadOnly},
 		{creator: toolCreatorSimple(createWorkloadsTool), minAccess: AccessLevelReadWrite},
 		{creator: toolCreatorSimple(createMetadataTool), minAccess: AccessLevelReadWrite},
 	}
@@ -354,6 +355,40 @@ Examples:
 	)
 }
 
+// createCheckPermissionsTool creates the permission checking tool
+func createCheckPermissionsTool() mcp.Tool {
+	description := `Check the current permission level and validation status of the MCP Kubernetes server.
+
+This tool returns metadata about:
+- Current access level (readonly/readwrite/admin)
+- Requested access level at startup
+- Whether access level was downgraded for safety
+- Whether mw-opsai-cluster-role was found
+- Validation status and any errors
+- Available kubectl tools for current access level
+
+Use this tool to verify what operations are available before attempting them.
+
+Examples:
+- Check current permissions: No parameters required, just call the tool
+
+Returns JSON with:
+{
+  "current_access_level": "readonly|readwrite|admin",
+  "requested_access_level": "readonly|readwrite|admin",
+  "was_downgraded": true|false,
+  "cluster_role_found": true|false,
+  "validation_enabled": true|false,
+  "validation_error": "error message if any",
+  "available_tools": ["kubectl_resources", "kubectl_diagnostics", ...],
+  "timestamp": "2025-10-03T10:59:48Z"
+}`
+
+	return mcp.NewTool("kubectl_check_permissions",
+		mcp.WithDescription(description),
+	)
+}
+
 // createConfigTool creates the configuration tool
 func createConfigTool(readOnly bool) mcp.Tool {
 	var description string
@@ -421,6 +456,7 @@ func GetKubectlToolNames() []string {
 		"kubectl_diagnostics",
 		"kubectl_cluster",
 		"kubectl_config",
+		"kubectl_check_permissions",
 	}
 }
 
