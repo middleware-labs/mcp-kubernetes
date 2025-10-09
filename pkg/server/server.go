@@ -111,8 +111,9 @@ func (s *Service) Initialize() error {
 		Timestamp:            time.Now().Format(time.RFC3339),
 	}
 
-	if s.cfg.ValidateClusterRole && (s.cfg.AccessLevel == "admin" || s.cfg.AccessLevel == "readwrite") {
-		log.Printf("Validating permissions by checking for mw-opsai-cluster-role...")
+	// Always validate cluster connection if validation is enabled
+	if s.cfg.ValidateClusterRole {
+		log.Printf("Validating cluster connection and permissions...")
 
 		time.Sleep(2 * time.Second)
 
@@ -121,37 +122,50 @@ func (s *Service) Initialize() error {
 		s.permissionMetadata.ClusterRoleFound = result.ClusterRoleFound
 
 		if !result.Success {
+			// Connection or timeout issues - set validation error but keep current access level
 			switch result.ErrorType {
 			case "connection":
-				log.Printf("Connection issue during cluster role validation: %s", result.ErrorMessage)
+				log.Printf("Connection issue during cluster validation: %s", result.ErrorMessage)
 				s.permissionMetadata.ValidationError = fmt.Sprintf("connection_issue: %s", result.ErrorMessage)
-				s.permissionMetadata.CurrentAccessLevel = "readonly"
+				// Don't change access level, just mark as downgraded for error reporting
 				s.permissionMetadata.WasDowngraded = true
 
 			case "timeout":
-				log.Printf("Timeout during cluster role validation: %s", result.ErrorMessage)
+				log.Printf("Timeout during cluster validation: %s", result.ErrorMessage)
 				s.permissionMetadata.ValidationError = fmt.Sprintf("timeout_issue: %s", result.ErrorMessage)
-				s.permissionMetadata.CurrentAccessLevel = "readonly"
+				// Don't change access level, just mark as downgraded for error reporting
 				s.permissionMetadata.WasDowngraded = true
 
 			default:
-				log.Printf("Warning: Failed to validate cluster role: %s", result.ErrorMessage)
-				log.Printf("Downgrading from '%s' to 'readonly' for safety", s.cfg.AccessLevel)
-				s.cfg.AccessLevel = "readonly"
-				s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
-				s.permissionMetadata.CurrentAccessLevel = "readonly"
-				s.permissionMetadata.WasDowngraded = true
+				log.Printf("Warning: Failed to validate cluster: %s", result.ErrorMessage)
 				s.permissionMetadata.ValidationError = result.ErrorMessage
+				// For other errors, downgrade to readonly for safety
+				if s.cfg.AccessLevel != "readonly" {
+					log.Printf("Downgrading from '%s' to 'readonly' for safety", s.cfg.AccessLevel)
+					s.cfg.AccessLevel = "readonly"
+					s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
+					s.permissionMetadata.CurrentAccessLevel = "readonly"
+					s.permissionMetadata.WasDowngraded = true
+				}
 			}
-		} else if !result.HasAdminRole {
-			log.Printf("mw-opsai-cluster-role not found, downgrading from '%s' to 'readonly'", s.cfg.AccessLevel)
-			s.cfg.AccessLevel = "readonly"
-			s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
-			s.permissionMetadata.CurrentAccessLevel = "readonly"
-			s.permissionMetadata.WasDowngraded = true
 		} else {
-			log.Printf("mw-opsai-cluster-role found, using requested access level: %s", s.cfg.AccessLevel)
-			s.permissionMetadata.CurrentAccessLevel = s.cfg.AccessLevel
+			// Connection successful, now check permissions based on access level
+			if s.cfg.AccessLevel == "admin" || s.cfg.AccessLevel == "readwrite" {
+				if !result.HasAdminRole {
+					log.Printf("mw-opsai-cluster-role not found, downgrading from '%s' to 'readonly'", s.cfg.AccessLevel)
+					s.cfg.AccessLevel = "readonly"
+					s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
+					s.permissionMetadata.CurrentAccessLevel = "readonly"
+					s.permissionMetadata.WasDowngraded = true
+				} else {
+					log.Printf("mw-opsai-cluster-role found, using requested access level: %s", s.cfg.AccessLevel)
+					s.permissionMetadata.CurrentAccessLevel = s.cfg.AccessLevel
+				}
+			} else {
+				// Already readonly, just confirm connection is working
+				log.Printf("Cluster connection validated successfully, using readonly access level")
+				s.permissionMetadata.CurrentAccessLevel = s.cfg.AccessLevel
+			}
 		}
 	}
 
