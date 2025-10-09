@@ -111,43 +111,52 @@ func (s *Service) Initialize() error {
 		Timestamp:            time.Now().Format(time.RFC3339),
 	}
 
-	// Validate permissions via cluster role check if enabled
 	if s.cfg.ValidateClusterRole && (s.cfg.AccessLevel == "admin" || s.cfg.AccessLevel == "readwrite") {
 		log.Printf("Validating permissions by checking for mw-opsai-cluster-role...")
 
-		// Wait a bit for subscriber to be ready
 		time.Sleep(2 * time.Second)
 
-		hasAdminRole, err := s.pulsarWorker.CheckClusterRolePermission(timeout)
-		if err != nil {
-			// If validation fails (timeout, error, etc.), downgrade to readonly for safety
-			log.Printf("Warning: Failed to validate cluster role: %v", err)
-			log.Printf("Downgrading from '%s' to 'readonly' for safety", s.cfg.AccessLevel)
-			s.cfg.AccessLevel = "readonly"
-			s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
-			s.permissionMetadata.CurrentAccessLevel = "readonly"
-			s.permissionMetadata.WasDowngraded = true
-			s.permissionMetadata.ValidationError = err.Error()
-		} else if !hasAdminRole {
-			// Cluster role not found, downgrade to readonly
+		result := s.pulsarWorker.CheckClusterRolePermission(timeout)
+
+		s.permissionMetadata.ClusterRoleFound = result.ClusterRoleFound
+
+		if !result.Success {
+			switch result.ErrorType {
+			case "connection":
+				log.Printf("Connection issue during cluster role validation: %s", result.ErrorMessage)
+				s.permissionMetadata.ValidationError = fmt.Sprintf("connection_issue: %s", result.ErrorMessage)
+				s.permissionMetadata.CurrentAccessLevel = "readonly"
+				s.permissionMetadata.WasDowngraded = true
+
+			case "timeout":
+				log.Printf("Timeout during cluster role validation: %s", result.ErrorMessage)
+				s.permissionMetadata.ValidationError = fmt.Sprintf("timeout_issue: %s", result.ErrorMessage)
+				s.permissionMetadata.CurrentAccessLevel = "readonly"
+				s.permissionMetadata.WasDowngraded = true
+
+			default:
+				log.Printf("Warning: Failed to validate cluster role: %s", result.ErrorMessage)
+				log.Printf("Downgrading from '%s' to 'readonly' for safety", s.cfg.AccessLevel)
+				s.cfg.AccessLevel = "readonly"
+				s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
+				s.permissionMetadata.CurrentAccessLevel = "readonly"
+				s.permissionMetadata.WasDowngraded = true
+				s.permissionMetadata.ValidationError = result.ErrorMessage
+			}
+		} else if !result.HasAdminRole {
 			log.Printf("mw-opsai-cluster-role not found, downgrading from '%s' to 'readonly'", s.cfg.AccessLevel)
 			s.cfg.AccessLevel = "readonly"
 			s.cfg.SecurityConfig.AccessLevel = security.AccessLevelReadOnly
 			s.permissionMetadata.CurrentAccessLevel = "readonly"
 			s.permissionMetadata.WasDowngraded = true
-			s.permissionMetadata.ClusterRoleFound = false
 		} else {
-			// Cluster role found, use requested access level
 			log.Printf("mw-opsai-cluster-role found, using requested access level: %s", s.cfg.AccessLevel)
-			s.permissionMetadata.ClusterRoleFound = true
 			s.permissionMetadata.CurrentAccessLevel = s.cfg.AccessLevel
 		}
 	}
 
-	// Register kubectl commands AFTER validation (so tools are filtered correctly)
 	s.registerKubectlCommands()
 
-	// Register additional tools
 	if s.cfg.AdditionalTools["helm"] {
 		helmTool := helm.RegisterHelm()
 		s.mcpServer.AddTool(helmTool, tools.CreateToolHandler(helm.NewExecutor(), s.cfg))
