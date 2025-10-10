@@ -22,6 +22,15 @@ var (
 	errInvalidMode = errors.New("invalid mode passed")
 )
 
+type ClusterRoleCheckResult struct {
+	Success          bool   `json:"success"`
+	HasAdminRole     bool   `json:"has_admin_role"`
+	ErrorType        string `json:"error_type,omitempty"` // "connection", "timeout", "permission", "other"
+	ErrorMessage     string `json:"error_message,omitempty"`
+	ClusterRoleFound bool   `json:"cluster_role_found"`
+	ResponseReceived bool   `json:"response_received"`
+}
+
 type Mode uint16
 
 var (
@@ -255,4 +264,72 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 		"result":      payload,
 	}
 	return w.produceMessage(accountUid, topic, idString, payloadMap)
+}
+
+// CheckClusterRolePermission validates if mw-opsai-cluster-role exists
+func (w *Worker) CheckClusterRolePermission(timeout int) *ClusterRoleCheckResult {
+	cmd := "kubectl get clusterroles"
+
+	id := int(time.Now().UnixMilli())
+	respCh := make(chan string, 1)
+	w.pending.Store(id, respCh)
+
+	topic := fmt.Sprintf("mcp-%s-%x",
+		strings.ToLower(w.cfg.Token),
+		sha1.Sum([]byte(strings.ToLower(w.cfg.Location))))
+
+	err := w.sendRequest(w.cfg.AccountUID, id, topic, map[string]interface{}{
+		"command": cmd,
+	})
+	if err != nil {
+		slog.Error("failed to send cluster role check request", "error", err, "id", id, "topic", topic)
+		return &ClusterRoleCheckResult{
+			Success:          false,
+			HasAdminRole:     false,
+			ErrorType:        "connection",
+			ErrorMessage:     fmt.Sprintf("failed to send cluster role check: %s", err.Error()),
+			ClusterRoleFound: false,
+			ResponseReceived: false,
+		}
+	}
+
+	slog.Info("checking for mw-opsai-cluster-role", "id", id, "topic", topic)
+
+	var res string
+	select {
+	case res = <-respCh:
+		slog.Info("received cluster roles response", "id", id)
+		if strings.Contains(res, "mw-opsai-cluster-role") {
+			slog.Info("mw-opsai-cluster-role found - admin/write permission available")
+			return &ClusterRoleCheckResult{
+				Success:          true,
+				HasAdminRole:     true,
+				ErrorType:        "",
+				ErrorMessage:     "",
+				ClusterRoleFound: true,
+				ResponseReceived: true,
+			}
+		}
+		slog.Info("mw-opsai-cluster-role not found - using readonly permission")
+		return &ClusterRoleCheckResult{
+			Success:          true,
+			HasAdminRole:     false,
+			ErrorType:        "",
+			ErrorMessage:     "",
+			ClusterRoleFound: false,
+			ResponseReceived: true,
+		}
+
+	case <-time.After(time.Second * time.Duration(timeout)):
+		w.pending.Delete(id)
+		slog.Error("timeout checking cluster roles", "id", id, "topic", topic)
+		return &ClusterRoleCheckResult{
+			Success:          false,
+			HasAdminRole:     false,
+			ErrorType:        "timeout",
+			ErrorMessage:     fmt.Sprintf("timeout checking cluster roles after %d seconds", timeout),
+			ClusterRoleFound: false,
+			ResponseReceived: false,
+		}
+	}
 }

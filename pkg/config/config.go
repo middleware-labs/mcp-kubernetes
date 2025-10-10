@@ -23,18 +23,21 @@ type ConfigData struct {
 	Port            int
 	AccessLevel     string
 	AllowNamespaces string
+	// ValidateClusterRole controls whether to validate mw-opsai-cluster-role
+	ValidateClusterRole bool
 }
 
 // NewConfig creates and returns a new configuration instance
 func NewConfig() *ConfigData {
 	return &ConfigData{
-		AdditionalTools: make(map[string]bool),
-		Timeout:         60,
-		SecurityConfig:  security.NewSecurityConfig(),
-		Transport:       "stdio",
-		Port:            8000,
-		AccessLevel:     "readonly",
-		AllowNamespaces: "",
+		AdditionalTools:     make(map[string]bool),
+		Timeout:             60,
+		SecurityConfig:      security.NewSecurityConfig(),
+		Transport:           "stdio",
+		Port:                8000,
+		AccessLevel:         "readonly",
+		AllowNamespaces:     "",
+		ValidateClusterRole: true, // Enable by default
 	}
 }
 
@@ -54,6 +57,8 @@ func (cfg *ConfigData) ParseFlags() error {
 	flag.StringVar(&cfg.AccessLevel, "access-level", "readonly", "Access level (readonly, readwrite, or admin)")
 	flag.StringVar(&cfg.AllowNamespaces, "allow-namespaces", "",
 		"Comma-separated list of namespaces to allow (empty means all allowed)")
+	flag.BoolVar(&cfg.ValidateClusterRole, "validate-cluster-role", true,
+		"Validate mw-opsai-cluster-role exists before allowing admin/readwrite access")
 
 	flag.Parse()
 
