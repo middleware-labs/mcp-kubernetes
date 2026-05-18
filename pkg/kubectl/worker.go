@@ -179,7 +179,7 @@ func (w *Worker) startSubscriberWithRetry(topic string, attempt int) error {
 				continue
 			}
 
-			w.retryNack(ctx, consumer, msg)
+			w.retryAck(ctx, consumer, msg)
 		}
 	}()
 
@@ -209,18 +209,20 @@ func (w *Worker) retryNack(ctx context.Context, consumer ws.Consumer, msg *ws.Ms
 }
 
 func (w *Worker) produceMessage(accountUid string,
-	topic string, key string, payload map[string]interface{}) error {
+	topic string, key string, payload map[string]interface{}, expirationMs string) error {
 
 	type topicKeyPayload struct {
-		Topic   string
-		Key     string
-		Payload map[string]interface{}
+		Topic      string
+		Key        string
+		Payload    map[string]interface{}
+		Expiration string `json:",omitempty"`
 	}
 
 	pay := topicKeyPayload{
-		Topic:   topic,
-		Key:     key,
-		Payload: payload,
+		Topic:      topic,
+		Key:        key,
+		Payload:    payload,
+		Expiration: expirationMs,
 	}
 	str, _ := json.Marshal(pay)
 	slog.Info("producing message", slog.String("url", w.cfg.UnsubscribeEndpoint), slog.String("payload", string(str)))
@@ -263,7 +265,8 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 		"topic":       topic,
 		"result":      payload,
 	}
-	return w.produceMessage(accountUid, topic, idString, payloadMap)
+	ttlMs := fmt.Sprintf("%d", (w.cfg.Timeout)*1000)
+	return w.produceMessage(accountUid, topic, idString, payloadMap, ttlMs)
 }
 
 // CheckClusterRolePermission validates if mw-opsai-cluster-role exists
