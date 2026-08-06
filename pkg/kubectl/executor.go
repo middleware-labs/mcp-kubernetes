@@ -1,7 +1,6 @@
 package kubectl
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -26,6 +25,19 @@ func NewExecutor(pulsarWorker *Worker) *KubectlExecutor {
 	return &KubectlExecutor{
 		pulsarWorker: pulsarWorker,
 	}
+}
+
+// replyHeadroomSeconds is the slack left between the agent's command deadline
+// and our own, so a command that overruns still has time to publish its error
+// back to us instead of being reported as an unreachable cluster.
+const replyHeadroomSeconds = 5
+
+// commandBudget converts our wait into the deadline the agent should apply.
+func commandBudget(timeout int) int {
+	if timeout-replyHeadroomSeconds < 1 {
+		return 1
+	}
+	return timeout - replyHeadroomSeconds
 }
 
 // executeKubectlCommand executes a kubectl command with the given arguments
@@ -59,19 +71,29 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 			fullCmd += " " + args
 		}
 	}
-	id := int(time.Now().UnixMilli())
+	id := nextRequestID()
 	respCh := make(chan string, 1)
 	e.pulsarWorker.pending.Store(id, respCh)
-	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(e.pulsarWorker.cfg.Token), sha1.Sum([]byte(strings.ToLower(e.pulsarWorker.cfg.Location))))
+	topic := e.pulsarWorker.Topic()
+	// Tell the agent how long it may spend, so its own deadline lands before
+	// ours and it still gets to send the failure back. The two sides used to
+	// pick 60s independently, which meant a slow command's error reply was
+	// produced only after this side had already stopped listening.
 	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
-		"command": fullCmd,
+		"command":         fullCmd,
+		"timeout_seconds": commandBudget(e.pulsarWorker.cfg.Timeout),
 	})
 	if err != nil {
+		e.pulsarWorker.pending.Delete(id)
 		return "", fmt.Errorf("failed to send request: %s", err.Error())
 	}
 
 	slog.Info("waiting for response", "id", id, "topic", topic)
 
+	// Reaching this deadline now means the request was never picked up, since
+	// the agent was told to give up replyHeadroomSeconds earlier and report
+	// its own failure. Older agents that ignore "timeout_seconds" fall back to
+	// a 45s default, which is still inside this window.
 	var res string
 	select {
 	case res = <-respCh:
@@ -79,7 +101,9 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	case <-time.After(time.Second * time.Duration(e.pulsarWorker.cfg.Timeout)):
 		e.pulsarWorker.pending.Delete(id)
 		slog.Info("timeout", "id", id, "topic", topic)
-		return "", fmt.Errorf("timeout waiting for response")
+		return "", fmt.Errorf("timeout waiting for response after %ds "+
+			"(no agent is subscribed to the request topic, or it is still busy)",
+			e.pulsarWorker.cfg.Timeout)
 	}
 	slog.Info("waiting completed", "id", id, "topic", topic)
 	return res, nil
