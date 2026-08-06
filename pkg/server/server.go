@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -78,12 +77,25 @@ func (s *Service) Initialize() error {
 		fingerprint = os.Getenv("FINGERPRINT")
 	}
 
+	// The request topic is derived from the target cluster's name, which the
+	// synthetics-agent reads from MW_KUBE_CLUSTER_NAME. Read the same variable
+	// here rather than HOSTNAME: this process is spawned with the full parent
+	// environment, so HOSTNAME resolves to the *caller's* pod name whenever it
+	// isn't explicitly overridden. That produced a topic nothing subscribed to,
+	// and since publishing to an unconsumed topic still returns 200, every
+	// command silently timed out instead of failing.
+	clusterName := strings.TrimSpace(os.Getenv("MW_KUBE_CLUSTER_NAME"))
+	if clusterName == "" {
+		return fmt.Errorf("MW_KUBE_CLUSTER_NAME is not set: it names the cluster to route " +
+			"kubectl commands to and must match the MW_KUBE_CLUSTER_NAME of the target mw-agent")
+	}
+
 	// Register individual kubectl commands based on permission level
-	pulsar, _ := kubectl.New(&kubectl.Config{
+	pulsar, err := kubectl.New(&kubectl.Config{
 		Mode:                1,
-		Location:            os.Getenv("HOSTNAME"),
+		Location:            clusterName,
 		AccountUID:          os.Getenv("ACCOUNT_UID"),
-		Hostname:            os.Getenv("HOSTNAME"),
+		Hostname:            clusterName,
 		PulsarHost:          os.Getenv("PULSAR_HOST"),
 		Timeout:             timeout,
 		NCAPassword:         os.Getenv("NCA_PASSWORD"),
@@ -91,10 +103,13 @@ func (s *Service) Initialize() error {
 		Token:               os.Getenv("TOKEN"),
 		Fingerprint:         fingerprint,
 	})
+	if err != nil {
+		return fmt.Errorf("failed to create remote command worker: %w", err)
+	}
 	s.pulsarWorker = pulsar
 
-	topic := fmt.Sprintf("mcp-%s-%x", strings.ToLower(os.Getenv("TOKEN")), sha1.Sum([]byte(strings.ToLower(os.Getenv("HOSTNAME")))))
-	if err := s.pulsarWorker.StartSubscriber(topic + "-unsubscribe"); err != nil {
+	log.Printf("routing kubectl commands to cluster %q", clusterName)
+	if err := s.pulsarWorker.StartSubscriber(s.pulsarWorker.ReplyTopic()); err != nil {
 		log.Fatalf("failed to start subscriber: %v", err)
 	}
 

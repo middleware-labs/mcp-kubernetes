@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
@@ -19,8 +20,51 @@ import (
 )
 
 var (
-	errInvalidMode = errors.New("invalid mode passed")
+	errInvalidMode   = errors.New("invalid mode passed")
+	errEmptyLocation = errors.New("location is empty: the request topic is derived from it, " +
+		"so an empty value would collide with every other deployment sharing this token")
 )
+
+// requestIDCounter backs nextRequestID. It is seeded from the wall clock so ids
+// stay roughly ordered across restarts.
+var requestIDCounter atomic.Int64
+
+func init() {
+	requestIDCounter.Store(time.Now().UnixMilli())
+}
+
+// nextRequestID returns a process-unique correlation id for a remote command.
+//
+// This used to be int(time.Now().UnixMilli()), which meant two calls issued in
+// the same millisecond produced the same id. The second one overwrote the first
+// in Worker.pending, so the first caller's channel was never signalled and it
+// blocked until its timeout even though a valid response had come back.
+func nextRequestID() int {
+	return int(requestIDCounter.Add(1))
+}
+
+// MCPTopic returns the request topic used to reach a synthetics-agent running
+// in MCP mode. The agent subscribes to this exact name and publishes replies to
+// MCPTopic()+"-unsubscribe".
+//
+// Both sides hash a cluster name into the topic and there is no handshake, so a
+// mismatch is silent: the publish succeeds, nothing consumes it, and the caller
+// simply times out. Keep this the single definition of the name — do not inline
+// the format string at call sites.
+func MCPTopic(token, location string) string {
+	return fmt.Sprintf("mcp-%s-%x", strings.ToLower(token),
+		sha1.Sum([]byte(strings.ToLower(location))))
+}
+
+// Topic returns this worker's request topic.
+func (w *Worker) Topic() string {
+	return MCPTopic(w.cfg.Token, w.cfg.Location)
+}
+
+// ReplyTopic returns the topic the agent publishes command results back on.
+func (w *Worker) ReplyTopic() string {
+	return w.Topic() + "-unsubscribe"
+}
 
 type ClusterRoleCheckResult struct {
 	Success          bool   `json:"success"`
@@ -76,6 +120,13 @@ type Worker struct {
 
 // New creates a new worker
 func New(cfg *Config) (*Worker, error) {
+	// Every remote command is routed on a topic derived from cfg.Location. An
+	// empty value hashes to the sha1 of "", a constant, so the worker would
+	// quietly share a topic with every other deployment using the same token.
+	if strings.TrimSpace(cfg.Location) == "" {
+		return &Worker{}, errEmptyLocation
+	}
+
 	var topic string
 	switch cfg.Mode {
 	case ModeLocation:
@@ -273,13 +324,11 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 func (w *Worker) CheckClusterRolePermission(timeout int) *ClusterRoleCheckResult {
 	cmd := "kubectl get clusterroles"
 
-	id := int(time.Now().UnixMilli())
+	id := nextRequestID()
 	respCh := make(chan string, 1)
 	w.pending.Store(id, respCh)
 
-	topic := fmt.Sprintf("mcp-%s-%x",
-		strings.ToLower(w.cfg.Token),
-		sha1.Sum([]byte(strings.ToLower(w.cfg.Location))))
+	topic := w.Topic()
 
 	err := w.sendRequest(w.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": cmd,
