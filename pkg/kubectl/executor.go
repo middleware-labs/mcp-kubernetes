@@ -79,7 +79,7 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	// ours and it still gets to send the failure back. The two sides used to
 	// pick 60s independently, which meant a slow command's error reply was
 	// produced only after this side had already stopped listening.
-	err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
+	noSubscriber, err := e.pulsarWorker.sendRequest(e.pulsarWorker.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command":         fullCmd,
 		"timeout_seconds": commandBudget(e.pulsarWorker.cfg.Timeout),
 	})
@@ -88,7 +88,8 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 		return "", fmt.Errorf("failed to send request: %s", err.Error())
 	}
 
-	slog.Info("waiting for response", "id", id, "topic", topic)
+	logTopic := redactTopic(topic)
+	slog.Info("waiting for response", "id", id, "topic", logTopic, "no_subscriber", noSubscriber)
 
 	// Reaching this deadline now means the request was never picked up, since
 	// the agent was told to give up replyHeadroomSeconds earlier and report
@@ -97,15 +98,18 @@ func (e *KubectlExecutor) executeKubectlCommandOnHost(cmd string, args string, c
 	var res string
 	select {
 	case res = <-respCh:
-		slog.Info("got message", "id", id, "topic", topic)
-	case <-time.After(time.Second * time.Duration(e.pulsarWorker.cfg.Timeout)):
+		slog.Info("got message", "id", id, "topic", logTopic)
+	case <-time.After(replyWait(e.pulsarWorker.cfg.Timeout, noSubscriber)):
 		e.pulsarWorker.pending.Delete(id)
-		slog.Info("timeout", "id", id, "topic", topic)
+		slog.Info("timeout", "id", id, "topic", logTopic, "no_subscriber", noSubscriber)
+		if noSubscriber {
+			return "", e.pulsarWorker.noSubscriberError()
+		}
 		return "", fmt.Errorf("timeout waiting for response after %ds "+
 			"(no agent is subscribed to the request topic, or it is still busy)",
 			e.pulsarWorker.cfg.Timeout)
 	}
-	slog.Info("waiting completed", "id", id, "topic", topic)
+	slog.Info("waiting completed", "id", id, "topic", logTopic)
 	return res, nil
 }
 

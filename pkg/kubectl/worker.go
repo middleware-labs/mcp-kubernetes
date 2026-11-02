@@ -191,7 +191,7 @@ func (w *Worker) startSubscriberWithRetry(topic string, attempt int) error {
 	}
 
 	w.consumer = consumer
-	slog.Info("started subscriber", "topic", topic)
+	slog.Info("started subscriber", "topic", redactTopic(topic))
 
 	go func() {
 		for {
@@ -259,8 +259,20 @@ func (w *Worker) retryNack(ctx context.Context, consumer ws.Consumer, msg *ws.Ms
 	}
 }
 
+// redactTopic strips the API key from a topic name so that it is safe to log.
+func redactTopic(topic string) string {
+	parts := strings.SplitN(topic, "-", 3)
+	if len(parts) < 2 {
+		return topic
+	}
+	parts[1] = "<redacted>"
+	return strings.Join(parts, "-")
+}
+
+// produceMessage publishes and returns how many consumers the broker reported
+// for the topic, or nil when it reported none (older bifrost or bridge).
 func (w *Worker) produceMessage(accountUid string,
-	topic string, key string, payload map[string]interface{}, expirationMs string) error {
+	topic string, key string, payload map[string]interface{}, expirationMs string) (*int, error) {
 
 	type topicKeyPayload struct {
 		Topic      string
@@ -276,12 +288,13 @@ func (w *Worker) produceMessage(accountUid string,
 		Expiration: expirationMs,
 	}
 	str, _ := json.Marshal(pay)
-	slog.Info("producing message", slog.String("url", w.cfg.UnsubscribeEndpoint), slog.String("payload", string(str)))
+	slog.Info("producing message", slog.String("url", w.cfg.UnsubscribeEndpoint),
+		slog.String("topic", redactTopic(topic)), slog.String("key", key))
 	url := strings.ReplaceAll(w.cfg.UnsubscribeEndpoint, "{ACC}", accountUid)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(str))
 	if err != nil {
 		slog.Error("failed to create request", slog.String("error", err.Error()))
-		return fmt.Errorf("failed to create request: %s", err.Error())
+		return nil, fmt.Errorf("failed to create request: %s", err.Error())
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -292,19 +305,29 @@ func (w *Worker) produceMessage(accountUid string,
 	re, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("failed to produce message", slog.String("error", err.Error()))
-		return fmt.Errorf("failed to produce message: %s", err.Error())
+		return nil, fmt.Errorf("failed to produce message: %s", err.Error())
 	}
+	defer re.Body.Close()
 
 	if re.StatusCode != 200 {
 		str, _ := io.ReadAll(re.Body)
 		slog.Error("failed to produce message", slog.String("response status", re.Status),
 			slog.String("url", url), slog.String("response", string(str)))
-		return fmt.Errorf("failed to produce message: %s", string(str))
+		return nil, fmt.Errorf("failed to produce message: %s", string(str))
 	}
-	return nil
+
+	var published struct {
+		Consumers *int `json:"consumers"`
+	}
+	// The message is already published, so an unreadable body only means the
+	// consumer count is unknown.
+	_ = json.NewDecoder(re.Body).Decode(&published)
+	return published.Consumers, nil
 }
 
-func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) error {
+// sendRequest publishes a command for the agent. noSubscriber is true only when
+// the broker positively reported that nobody is consuming the request topic.
+func (w *Worker) sendRequest(accountUid string, id int, topic string, payload map[string]interface{}) (noSubscriber bool, err error) {
 	idString := fmt.Sprintf("%d", id)
 	payloadMap := map[string]interface{}{
 		"Not":         "",
@@ -317,7 +340,30 @@ func (w *Worker) sendRequest(accountUid string, id int, topic string, payload ma
 		"result":      payload,
 	}
 	ttlMs := fmt.Sprintf("%d", (w.cfg.Timeout)*1000)
-	return w.produceMessage(accountUid, topic, idString, payloadMap, ttlMs)
+	consumers, err := w.produceMessage(accountUid, topic, idString, payloadMap, ttlMs)
+	return consumers != nil && *consumers == 0, err
+}
+
+// noSubscriberGrace is how long to wait for a reply once the broker has said
+// nobody is subscribed. It only covers an agent that is mid-reconnect, which
+// retries every 5s, so a missing agent is reported well before the full timeout.
+var noSubscriberGrace = 10 * time.Second
+
+// replyWait returns how long to wait for the reply to a request.
+func replyWait(timeoutSeconds int, noSubscriber bool) time.Duration {
+	wait := time.Second * time.Duration(timeoutSeconds)
+	if noSubscriber && wait > noSubscriberGrace {
+		return noSubscriberGrace
+	}
+	return wait
+}
+
+// noSubscriberError reports a request that nothing could have received. It is
+// worded for the investigating agent, which otherwise retries a dead cluster.
+func (w *Worker) noSubscriberError() error {
+	return fmt.Errorf("no agent is connected for cluster %q: nothing is subscribed to its request topic. "+
+		"Retrying will not help; check that the opsai deployment in the cluster is running and can reach the broker",
+		w.cfg.Location)
 }
 
 // CheckClusterRolePermission validates if mw-opsai-cluster-role exists
@@ -330,11 +376,11 @@ func (w *Worker) CheckClusterRolePermission(timeout int) *ClusterRoleCheckResult
 
 	topic := w.Topic()
 
-	err := w.sendRequest(w.cfg.AccountUID, id, topic, map[string]interface{}{
+	noSubscriber, err := w.sendRequest(w.cfg.AccountUID, id, topic, map[string]interface{}{
 		"command": cmd,
 	})
 	if err != nil {
-		slog.Error("failed to send cluster role check request", "error", err, "id", id, "topic", topic)
+		slog.Error("failed to send cluster role check request", "error", err, "id", id, "topic", redactTopic(topic))
 		return &ClusterRoleCheckResult{
 			Success:          false,
 			HasAdminRole:     false,
@@ -345,7 +391,7 @@ func (w *Worker) CheckClusterRolePermission(timeout int) *ClusterRoleCheckResult
 		}
 	}
 
-	slog.Info("checking for mw-opsai-cluster-role", "id", id, "topic", topic)
+	slog.Info("checking for mw-opsai-cluster-role", "id", id, "topic", redactTopic(topic))
 
 	var res string
 	select {
@@ -372,9 +418,19 @@ func (w *Worker) CheckClusterRolePermission(timeout int) *ClusterRoleCheckResult
 			ResponseReceived: true,
 		}
 
-	case <-time.After(time.Second * time.Duration(timeout)):
+	case <-time.After(replyWait(timeout, noSubscriber)):
 		w.pending.Delete(id)
-		slog.Error("timeout checking cluster roles", "id", id, "topic", topic)
+		slog.Error("timeout checking cluster roles", "id", id, "topic", redactTopic(topic))
+		if noSubscriber {
+			return &ClusterRoleCheckResult{
+				Success:          false,
+				HasAdminRole:     false,
+				ErrorType:        "connection",
+				ErrorMessage:     w.noSubscriberError().Error(),
+				ClusterRoleFound: false,
+				ResponseReceived: false,
+			}
+		}
 		return &ClusterRoleCheckResult{
 			Success:          false,
 			HasAdminRole:     false,
